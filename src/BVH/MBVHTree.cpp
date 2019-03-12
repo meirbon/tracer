@@ -1,0 +1,302 @@
+#include "MBVHTree.h"
+#include "MBVHNode.h"
+
+#define PRINT_BUILD_TIME 1
+#define THREADING 0
+
+#if PRINT_BUILD_TIME
+#include <Utils/Timer.h>
+#endif
+
+namespace bvh
+{
+MBVHTree::MBVHTree(StaticBVHTree *orgTree)
+{
+    this->m_ObjectList = orgTree->m_ObjectList;
+    this->m_PrimitiveIndices = orgTree->m_PrimitiveIndices;
+    this->m_OriginalTree = orgTree;
+    ConstructBVH();
+}
+
+MBVHTree::MBVHTree(SceneObjectList *objectList, BVHType type,
+                   ctpl::ThreadPool *pool)
+{
+    this->m_ObjectList = objectList;
+    this->m_OriginalTree = new bvh::StaticBVHTree(objectList, type, pool);
+    this->m_OriginalTree->ConstructBVH();
+    this->m_PrimitiveIndices = this->m_OriginalTree->m_PrimitiveIndices;
+    ConstructBVH();
+}
+
+void MBVHTree::Traverse(Ray &r) const
+{
+    if (m_CanUseBVH)
+    {
+        const vec3 invDir = 1.f / r.direction;
+        const __m128 dirx4 = _mm_set1_ps(invDir.x);
+        const __m128 diry4 = _mm_set1_ps(invDir.y);
+        const __m128 dirz4 = _mm_set1_ps(invDir.z);
+
+        const __m128 orgx4 = _mm_set1_ps(r.origin.x);
+        const __m128 orgy4 = _mm_set1_ps(r.origin.y);
+        const __m128 orgz4 = _mm_set1_ps(r.origin.z);
+
+        m_Tree[0].Intersect(r, dirx4, diry4, dirz4, orgx4, orgy4, orgz4,
+                            m_Tree.data(), m_PrimitiveIndices,
+                            m_ObjectList->GetObjects());
+    }
+}
+
+unsigned int MBVHTree::TraverseDebug(Ray &r) const
+{
+    if (m_CanUseBVH)
+    {
+        const vec3 invDir = 1.f / r.direction;
+        const __m128 dirx4 = _mm_set1_ps(invDir.x);
+        const __m128 diry4 = _mm_set1_ps(invDir.y);
+        const __m128 dirz4 = _mm_set1_ps(invDir.z);
+
+        const __m128 orgx4 = _mm_set1_ps(r.origin.x);
+        const __m128 orgy4 = _mm_set1_ps(r.origin.y);
+        const __m128 orgz4 = _mm_set1_ps(r.origin.z);
+
+        return m_Tree[0].IntersectDebug(r, dirx4, diry4, dirz4, orgx4, orgy4,
+                                        orgz4, m_Tree.data());
+    }
+
+    return 0;
+}
+
+void MBVHTree::ConstructBVH()
+{
+    m_Tree.clear();
+    m_Tree.resize(m_OriginalTree->m_PrimitiveCount * 2);
+    if (this->m_OriginalTree->GetPrimitiveCount() > 0)
+    {
+#if PRINT_BUILD_TIME
+        Timer t{};
+#endif
+        m_FinalPtr = 1;
+        MBVHNode &mRootNode = m_Tree[0];
+        BVHNode &curNode = m_OriginalTree->GetNode(0);
+#if THREADING // threading is not actually faster here
+        // Only use threading when we have a large number of primitives,
+        // otherwise threading is actually slower
+        if (m_OriginalTree->m_ThreadPool != nullptr &&
+            m_OriginalTree->GetPrimitiveCount() >= 250000)
+        {
+            m_ThreadLimitReached = false;
+            m_BuildingThreads = 0;
+            mRootNode.MergeNodesMT(curNode, this->m_OriginalTree->m_BVHPool,
+                                   this);
+        }
+        else
+        {
+            mRootNode.MergeNodes(curNode, this->m_OriginalTree->m_BVHPool,
+                                 this);
+        }
+#else
+        mRootNode.MergeNodes(curNode, this->m_OriginalTree->m_BVHPool, this);
+#endif
+        m_Bounds = m_OriginalTree->GetNode(0).bounds;
+
+#if PRINT_BUILD_TIME
+        std::cout << "Building MBVH took: " << t.elapsed() << " ms."
+                  << std::endl;
+#endif
+        m_CanUseBVH = true;
+    }
+}
+
+static const __m128 QuadOne = _mm_set1_ps(1.f);
+
+void MBVHTree::TraceRay(Ray &r) const
+{
+    const __m128 dirInversed = _mm_div_ps(QuadOne, r.m_Direction4);
+    const __m128 t1 =
+        _mm_mul_ps(_mm_sub_ps(m_Bounds.bmin4, r.m_Origin4), dirInversed);
+    const __m128 t2 =
+        _mm_mul_ps(_mm_sub_ps(m_Bounds.bmax4, r.m_Origin4), dirInversed);
+
+    union {
+        __m128 f4;
+        float f[4];
+    } qvmax, qvmin;
+
+    qvmax.f4 = _mm_max_ps(t1, t2);
+    qvmin.f4 = _mm_min_ps(t1, t2);
+
+    const float tmax = glm::min(qvmax.f[0], glm::min(qvmax.f[1], qvmax.f[2]));
+    const float tmin = glm::max(qvmin.f[0], glm::max(qvmin.f[1], qvmin.f[2]));
+
+    if (tmax >= 0 && tmin < tmax)
+    {
+#if USE_STACK
+        TraverseWithStack(r);
+#else
+        Traverse(r);
+#endif
+        if (r.IsValid())
+        {
+            r.normal = r.obj->GetNormal(r.GetHitpoint());
+        }
+    }
+}
+
+bool MBVHTree::TraceShadowRay(Ray &r, float tMax) const
+{
+    const __m128 dirInversed = _mm_div_ps(QuadOne, r.m_Direction4);
+    const __m128 t1 =
+        _mm_mul_ps(_mm_sub_ps(m_Bounds.bmin4, r.m_Origin4), dirInversed);
+    const __m128 t2 =
+        _mm_mul_ps(_mm_sub_ps(m_Bounds.bmax4, r.m_Origin4), dirInversed);
+
+    union {
+        __m128 f4;
+        float f[4];
+    } qvmax, qvmin;
+
+    qvmax.f4 = _mm_max_ps(t1, t2);
+    qvmin.f4 = _mm_min_ps(t1, t2);
+
+    const float tmax = glm::min(qvmax.f[0], glm::min(qvmax.f[1], qvmax.f[2]));
+    const float tmin = glm::max(qvmin.f[0], glm::max(qvmin.f[1], qvmin.f[2]));
+
+    if (tmax >= 0 && tmin < tmax)
+    {
+#if USE_STACK
+        TraverseWithStack(r);
+#else
+        Traverse(r);
+#endif
+    }
+
+    return r.t < tMax;
+}
+
+const std::vector<SceneObject *> &MBVHTree::GetLights() const
+{
+    return m_ObjectList->GetLights();
+}
+
+AABB MBVHTree::GetNodeBounds(uint index)
+{
+    MBVHNode &curNode = m_Tree[index];
+    const float maxx =
+        glm::max(curNode.bmaxx[0],
+                 glm::max(curNode.bmaxx[1],
+                          glm::max(curNode.bmaxx[2], curNode.bmaxx[3])));
+    const float maxy =
+        glm::max(curNode.bmaxy[0],
+                 glm::max(curNode.bmaxy[1],
+                          glm::max(curNode.bmaxy[2], curNode.bmaxy[3])));
+    const float maxz =
+        glm::max(curNode.bmaxz[0],
+                 glm::max(curNode.bmaxz[1],
+                          glm::max(curNode.bmaxz[2], curNode.bmaxz[3])));
+
+    const float minx =
+        glm::min(curNode.bminx[0],
+                 glm::min(curNode.bminx[1],
+                          glm::min(curNode.bminx[2], curNode.bminx[3])));
+    const float miny =
+        glm::min(curNode.bminy[0],
+                 glm::min(curNode.bminy[1],
+                          glm::min(curNode.bminy[2], curNode.bminy[3])));
+    const float minz =
+        glm::min(curNode.bminz[0],
+                 glm::min(curNode.bminz[1],
+                          glm::min(curNode.bminz[2], curNode.bminz[3])));
+
+    return AABB(vec3(minx, miny, minz), vec3(maxx, maxy, maxz));
+}
+
+uint MBVHTree::GetPrimitiveCount()
+{
+    return this->m_OriginalTree->GetPrimitiveCount();
+}
+
+unsigned int MBVHTree::TraceDebug(Ray &r) const
+{
+    unsigned int depth = 0;
+
+    const __m128 dirInversed = _mm_div_ps(QuadOne, r.m_Direction4);
+    const __m128 t1 =
+        _mm_mul_ps(_mm_sub_ps(m_Bounds.bmin4, r.m_Origin4), dirInversed);
+    const __m128 t2 =
+        _mm_mul_ps(_mm_sub_ps(m_Bounds.bmax4, r.m_Origin4), dirInversed);
+
+    union {
+        __m128 f4;
+        float f[4];
+    } qvmax, qvmin;
+
+    qvmax.f4 = _mm_max_ps(t1, t2);
+    qvmin.f4 = _mm_min_ps(t1, t2);
+
+    const float tmax = glm::min(qvmax.f[0], glm::min(qvmax.f[1], qvmax.f[2]));
+    const float tmin = glm::max(qvmin.f[0], glm::max(qvmin.f[1], qvmin.f[2]));
+
+    if (tmax >= 0.0f && tmin < tmax)
+    {
+        depth += TraverseDebug(r);
+    }
+
+    return depth;
+}
+
+void MBVHTree::TraverseWithStack(Ray &r) const
+{
+    MBVHTraversal todo[64];
+    MBVHHit mHit;
+    int stackptr = 0;
+
+    const vec3 invDir = 1.f / r.direction;
+    const __m128 dirx4 = _mm_set1_ps(invDir.x);
+    const __m128 diry4 = _mm_set1_ps(invDir.y);
+    const __m128 dirz4 = _mm_set1_ps(invDir.z);
+
+    const __m128 orgx4 = _mm_set1_ps(r.origin.x);
+    const __m128 orgy4 = _mm_set1_ps(r.origin.y);
+    const __m128 orgz4 = _mm_set1_ps(r.origin.z);
+
+    todo[0].leftFirst = 0;
+    todo[0].count = -1;
+    todo[0].tNear = 0;
+    const std::vector<SceneObject *> &objects = m_ObjectList->GetObjects();
+
+    while (stackptr >= 0)
+    {
+        const MBVHTraversal &mTodo = todo[stackptr];
+        stackptr--;
+        if (mTodo.count > -1)
+        { // leaf node
+            for (int i = 0; i < mTodo.count; i++)
+            {
+                const int &primIdx = m_PrimitiveIndices[mTodo.leftFirst + i];
+                objects[primIdx]->Intersect(r);
+            }
+        }
+        else
+        {
+            const MBVHNode &n = this->m_Tree[mTodo.leftFirst];
+            mHit = m_Tree[mTodo.leftFirst].Intersect(r, dirx4, diry4, dirz4,
+                                                     orgx4, orgy4, orgz4);
+            if (mHit.result > 0)
+            {
+                for (int i = 3; i >= 0; i--)
+                { // reversed order, we want to check best nodes first
+                    const unsigned int idx = (mHit.tmini[i] & 0b11);
+                    if (((mHit.result >> idx) & 0b1) == 1)
+                    {
+                        stackptr++;
+                        todo[stackptr].leftFirst = n.child[idx];
+                        todo[stackptr].count = n.count[idx];
+                        todo[stackptr].tNear = mHit.tmin[idx];
+                    }
+                }
+            }
+        }
+    }
+}
+} // namespace bvh
