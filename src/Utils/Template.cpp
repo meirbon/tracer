@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
     SDL_SetWindowSize(gSDLContext, SCRWIDTH, SCRHEIGHT);
 
     int exitApp = 0;
-    auto app = new Application(gSDLContext, RendererType::CPU, SCRWIDTH, SCRHEIGHT, argc >= 2 ? argv[1] : nullptr);
+    auto app = new Application(gSDLContext, RendererType::GPU, SCRWIDTH, SCRHEIGHT, argc >= 2 ? argv[1] : nullptr);
 
     Timer t, drawTimer;
 

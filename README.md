@@ -1,15 +1,22 @@
 # Tracer
 
-A ray/path tracing application.
+A real-time ray/path tracing application.
 
 ## Features
 
 - Implements a cache-aligned BVH & 4-way MBVH with the following types: SAH, Binned SAH & Central split
+- Dynamic objects with support for BVH-refitting and rebuilding (Only on CPU, for now...)
 - Ray & path tracer for CPU
 - OpenCL path tracer on GPU
 - Sphere, plane, torus & triangles on CPU & triangles on GPU
 - Variance reduction: Next Event Estimation & Multiple Importance Sampling
 - Lambert Diffuse BRDF & Microfacet BRDF (GGX)
+
+## Screenshots
+
+![screenshot 0](screenshots/pic1.png)
+
+![screenshot 1](screenshots/pic2.png)
 
 ## Building
 
@@ -37,3 +44,9 @@ Switching between the modes can be done using the following buttons:
 
 The camera can be controlled using the mouse & WASD. View direction can also be changed using the arrow keys.
 The camera can be locked/unlocked by pressing L.
+
+## Planned features
+- Play around with NVIDIA RTX (through OptiX)
+- Port dynamic BVH to GPU
+- More material types & improved microfacets
+- Spatial BVH

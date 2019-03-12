@@ -501,8 +501,8 @@ void Dragon(GpuTriangleList *objectList)
     auto *mManager = material::MaterialManager::GetInstance();
 
     const uint lightMat =
-        mManager->AddMaterial(material::Material(vec3(10.f), .5f));
-    model::Load("models/sphere.obj", lightMat, vec3(0.f, 8.f, 0.f), .05f,
+        mManager->AddMaterial(material::Material(vec3(100.f), .5f));
+    model::Load("models/sphere.obj", lightMat, vec3(0.f, 17.f, -10.f), .05f,
                 objectList);
 
     const uint dragMat = mManager->AddMaterial(material::Material(

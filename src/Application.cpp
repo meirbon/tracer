@@ -46,7 +46,8 @@ Application::Application(SDL_Window *window, RendererType type, int width, int h
         if (scene != nullptr)
             model::Load(scene, defaultMaterial, glm::vec3(0.0f), 1.0f, m_GpuList);
         else
-            Micromaterials(m_GpuList);
+            Dragon(m_GpuList);
+            //Micromaterials(m_GpuList);
 
         if (m_GpuList->GetTriangles().empty())
             utils::FatalError(__FILE__, __LINE__, "No triangles for GPU, exiting.", "GPU Init");
