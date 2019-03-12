@@ -4,9 +4,9 @@ A real-time ray/path tracing application.
 
 ## Features
 
-- Implements a cache-aligned BVH & 4-way MBVH with the following types: SAH, Binned SAH & Central split
+- Implements a cache-aligned BVH & 4-way MBVH with the following build methods: SAH, Binned SAH & Central split
 - Dynamic objects with support for BVH-refitting and rebuilding (Only on CPU, for now...)
-- Ray & path tracer for CPU
+- Ray & path tracer on CPU
 - OpenCL path tracer on GPU
 - Sphere, plane, torus & triangles on CPU & triangles on GPU
 - Variance reduction: Next Event Estimation & Multiple Importance Sampling
@@ -20,9 +20,9 @@ A real-time ray/path tracing application.
 
 ## Building
 
-Using CMake this project can built on Mac, Windows & Linux. All platforms have been successfully tested.
+Using CMake this project can be build on MacOS, Windows & Linux. All platforms have been successfully tested. For Linux Ubuntu 18.04 was used with a NVIDIA GTX 1080.
 
-### Requirements
+### Dependencies
 - GLEW
 - SDL2
 - OpenCL
@@ -31,6 +31,8 @@ Using CMake this project can built on Mac, Windows & Linux. All platforms have b
 
 Libraries have been included for Windows and CMake is configured to automatically link to the libs included in this
 repository. For Linux/Mac you should install GLEW, SDL2, FreeImage and (only on Linux) OpenCL libraries.
+
+This project makes use of an OpenCL/OpenGL interop. Intel iGPUs do not support texture interop and therefor the OpenCL implementation in this project will not work on these GPUs.
 
 ## Controls
 
