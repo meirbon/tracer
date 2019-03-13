@@ -6,6 +6,7 @@ A real-time ray/path tracing application.
 
 - Implements a cache-aligned BVH & 4-way MBVH with the following build methods: SAH, Binned SAH & Central split
 - Dynamic objects with support for BVH-refitting and rebuilding (Only on CPU, for now...)
+- Multithreaded CPU path/ray tracer & multithreaded BVH building
 - Ray & path tracer on CPU
 - OpenCL path tracer on GPU
 - Sphere, plane, torus & triangles on CPU & triangles on GPU
