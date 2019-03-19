@@ -53,3 +53,4 @@ The camera can be locked/unlocked by pressing L.
 - Port dynamic BVH to GPU
 - More material types & improved microfacets
 - Spatial BVH
+- Implement Assimp model loader
