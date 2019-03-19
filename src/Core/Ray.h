@@ -26,17 +26,13 @@ struct Ray
 
     Ray Reflect(const glm::vec3 &normal) const;
 
-    Ray DiffuseReflection(const glm::vec3 &point, const glm::vec3 &normal,
-                          RandomGenerator &rng) const;
+    Ray DiffuseReflection(const glm::vec3 &point, const glm::vec3 &normal, RandomGenerator &rng) const;
 
     Ray DiffuseReflection(const glm::vec3 &normal, RandomGenerator &rng) const;
 
-    Ray CosineWeightedDiffuseReflection(const glm::vec3 &origin,
-                                        const glm::vec3 &normal,
-                                        RandomGenerator &rng) const;
+    Ray CosineWeightedDiffuseReflection(const glm::vec3 &origin, const glm::vec3 &normal, RandomGenerator &rng) const;
 
-    glm::vec3 TransformToTangent(const glm::vec3 &normal,
-                                 glm::vec3 vector) const;
+    glm::vec3 TransformToTangent(const glm::vec3 &normal, glm::vec3 vector) const;
 
     union {
         struct

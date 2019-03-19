@@ -50,6 +50,7 @@ struct Material
     };
 
     float shininess{};       // 32
+
     glm::vec3 absorption{};  // 44
     float refractionIndex{}; // 48
     float transparency{};    // 52

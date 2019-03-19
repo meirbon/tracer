@@ -6,10 +6,10 @@ file(GLOB_RECURSE SOURCES
     "src/*.cpp" "src/*.h"
 )
 
-add_executable(${PROJECT_NAME} ${SOURCES} src/Materials/MaterialManager.cpp src/Materials/MaterialManager.h)
-
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
 set(CMAKE_CXX_STANDARD 17)
+add_executable(${PROJECT_NAME} ${SOURCES})
+
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)

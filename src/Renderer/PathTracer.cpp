@@ -10,10 +10,9 @@
 #define TILE_HEIGHT 32
 #define TILE_WIDTH 32
 
-PathTracer::PathTracer(WorldScene *scene, int width, int height, Camera *camera,
-                       Surface *skyBox)
-    : m_Scene(scene), m_Width(width), m_Height(height), m_SkyBox(skyBox),
-      m_Camera(camera), m_SkyboxEnabled(skyBox != nullptr)
+PathTracer::PathTracer(WorldScene *scene, int width, int height, Camera *camera, Surface *skyBox)
+    : m_Scene(scene), m_Width(width), m_Height(height), m_SkyBox(skyBox), m_Camera(camera),
+      m_SkyboxEnabled(skyBox != nullptr)
 {
     m_Pixels = new glm::vec3[m_Width * m_Height];
     m_Energy = new float[m_Width * m_Height];
@@ -35,8 +34,7 @@ PathTracer::PathTracer(WorldScene *scene, int width, int height, Camera *camera,
         m_LightLotteryTickets[0] = lights[0]->GetArea() / m_LightArea;
         for (unsigned int i = 1; i < lights.size(); i++)
         {
-            m_LightLotteryTickets[i] = m_LightLotteryTickets[i - 1] +
-                                       lights[i]->GetArea() / m_LightArea;
+            m_LightLotteryTickets[i] = m_LightLotteryTickets[i - 1] + lights[i]->GetArea() / m_LightArea;
         }
         m_LightLotteryTickets[lights.size() - 1] = 1.f;
     }
@@ -101,6 +99,9 @@ void PathTracer::Render(Surface *output)
 {
     const float EFactor = 1.0f / float(SAMPLE_COUNT);
 
+    m_Height = output->GetHeight();
+    m_Width = output->GetWidth();
+
     const int vTiles = m_Height / TILE_HEIGHT;
     const int hTiles = m_Width / TILE_WIDTH;
 
@@ -112,8 +113,7 @@ void PathTracer::Render(Surface *output)
         {
             RandomGenerator *rngPointer = m_Rngs.at(idx);
             idx++;
-            tResults.push_back(tPool->push([tile_x, tile_y, this, output,
-                                            rngPointer, EFactor](int) -> void {
+            tResults.push_back(tPool->push([tile_x, tile_y, this, output, rngPointer, EFactor](int) -> void {
                 for (int y = 0; y < TILE_HEIGHT; y++)
                 {
                     const int pixel_y = y + tile_y * TILE_HEIGHT;
@@ -122,19 +122,15 @@ void PathTracer::Render(Surface *output)
                         const int pixel_x = x + tile_x * TILE_WIDTH;
 
                         uint depth = 0;
-                        Ray r = m_Camera->GenerateRandomRay(
-                            float(pixel_x), float(pixel_y), *rngPointer);
-                        auto color =
-                            Trace(r, depth, 1.f, *rngPointer) * EFactor;
+                        Ray r = m_Camera->GenerateRandomRay(float(pixel_x), float(pixel_y), *rngPointer);
+                        auto color = Trace(r, depth, 1.f, *rngPointer) * EFactor;
 
                         const int idx = pixel_x + pixel_y * m_Width;
 
                         if (m_Samples > 0)
                         {
                             const float factor = 1.0f / float(m_Samples + 1);
-                            m_Pixels[idx] =
-                                m_Pixels[idx] * float(m_Samples) * factor +
-                                color * factor;
+                            m_Pixels[idx] = m_Pixels[idx] * float(m_Samples) * factor + color * factor;
                         }
                         else
                         {
@@ -142,8 +138,7 @@ void PathTracer::Render(Surface *output)
                         }
 
                         m_Energy[idx] = color.x + color.y + color.z;
-                        output->Plot(pixel_x, pixel_y,
-                                     Vec3ToInt(m_Pixels[idx]));
+                        output->Plot(pixel_x, pixel_y, Vec3ToInt(m_Pixels[idx]));
                     }
                 }
             }));
@@ -157,8 +152,7 @@ void PathTracer::Render(Surface *output)
     m_Samples++;
 }
 
-glm::vec3 PathTracer::Trace(Ray &r, uint &depth, float refractionIndex,
-                            RandomGenerator &rng)
+glm::vec3 PathTracer::Trace(Ray &r, uint &depth, float refractionIndex, RandomGenerator &rng)
 {
     glm::vec3 E = glm::vec3(0.0f);
     for (int i = 0; i < SAMPLE_COUNT; i++)
@@ -248,8 +242,7 @@ glm::vec3 PathTracer::SampleNEE(Ray &r, RandomGenerator &rng) const
 
         if (isTransparent)
         {
-            throughput *=
-                albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
+            throughput *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
             continue;
         }
 
@@ -280,8 +273,7 @@ glm::vec3 PathTracer::SampleNEE(Ray &r, RandomGenerator &rng) const
             specular = false;
             const vec3 Direction = normalize(p - light->GetPosition());
             vec3 lightNormal;
-            const vec3 pointOnLight =
-                light->GetRandomPointOnSurface(Direction, lightNormal, rng);
+            const vec3 pointOnLight = light->GetRandomPointOnSurface(Direction, lightNormal, rng);
 
             vec3 L = pointOnLight - p;
             const float squaredDistance = dot(L, L);
@@ -296,11 +288,9 @@ glm::vec3 PathTracer::SampleNEE(Ray &r, RandomGenerator &rng) const
                 Ray lightRay = Ray(p + EPSILON * L, L);
                 if (!m_Scene->TraceShadowRay(lightRay, distance - EPSILON))
                 {
-                    const float SolidAngle =
-                        LNdotL * (light->m_Area / squaredDistance);
+                    const float SolidAngle = LNdotL * (light->m_Area / squaredDistance);
                     const auto m = m_Materials->GetMaterial(light->materialIdx);
-                    const vec3 Ld =
-                        BRDF * m.GetEmission() * SolidAngle * NdotL / NEEpdf;
+                    const vec3 Ld = BRDF * m.GetEmission() * SolidAngle * NdotL / NEEpdf;
 
                     E += throughput * Ld;
                 }
@@ -360,8 +350,7 @@ glm::vec3 PathTracer::SampleIS(Ray &r, RandomGenerator &rng) const
 
         if (isTransparent)
         {
-            throughput *=
-                albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
+            throughput *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
             continue;
         }
 
@@ -442,8 +431,7 @@ glm::vec3 PathTracer::SampleNEE_IS(Ray &r, RandomGenerator &rng) const
 
         if (isTransparent)
         {
-            throughput *=
-                albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
+            throughput *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
             continue;
         }
 
@@ -475,8 +463,7 @@ glm::vec3 PathTracer::SampleNEE_IS(Ray &r, RandomGenerator &rng) const
             specular = false;
             const vec3 Direction = normalize(p - light->GetPosition());
             vec3 lightNormal;
-            const vec3 pointOnLight =
-                light->GetRandomPointOnSurface(Direction, lightNormal, rng);
+            const vec3 pointOnLight = light->GetRandomPointOnSurface(Direction, lightNormal, rng);
 
             vec3 L = pointOnLight - p;
             const float squaredDistance = dot(L, L);
@@ -491,11 +478,9 @@ glm::vec3 PathTracer::SampleNEE_IS(Ray &r, RandomGenerator &rng) const
                 Ray lightRay = Ray(p + EPSILON * L, L);
                 if (!m_Scene->TraceShadowRay(lightRay, lDistance - EPSILON))
                 {
-                    const float SolidAngle =
-                        LNdotL * light->m_Area / squaredDistance;
+                    const float SolidAngle = LNdotL * light->m_Area / squaredDistance;
                     const auto m = m_Materials->GetMaterial(light->materialIdx);
-                    const vec3 Ld =
-                        BRDF * m.GetEmission() * SolidAngle * NdotL / NEEpdf;
+                    const vec3 Ld = BRDF * m.GetEmission() * SolidAngle * NdotL / NEEpdf;
 
                     E += throughput * Ld;
                 }
@@ -561,12 +546,10 @@ glm::vec3 PathTracer::SampleNEE_MIS(Ray &r, RandomGenerator &rng) const
                 const float NdotL = dot(normal, L);
                 const float LNdotL = dot(lightNormal, -L);
                 const float InversePDFnee = m_LightArea / light->m_Area;
-                const float SolidAngle =
-                    LNdotL * light->m_Area / squaredDistance;
+                const float SolidAngle = LNdotL * light->m_Area / squaredDistance;
                 const float lightPDF = 1.0f / SolidAngle;
                 const float brdfPDF = NdotL / PI;
-                const vec3 Ld =
-                    BRDF * mat.GetEmission() * NdotL * InversePDFnee;
+                const vec3 Ld = BRDF * mat.GetEmission() * NdotL * InversePDFnee;
 
                 if (lightPDF > 0.0f && brdfPDF > 0.0f)
                 {
@@ -595,8 +578,7 @@ glm::vec3 PathTracer::SampleNEE_MIS(Ray &r, RandomGenerator &rng) const
 
         if (isTransparent)
         {
-            tUpdate *=
-                albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
+            tUpdate *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
             specular = true;
             continue;
         }
@@ -627,8 +609,7 @@ glm::vec3 PathTracer::SampleNEE_MIS(Ray &r, RandomGenerator &rng) const
         { // if there are no lights
             const vec3 Direction = normalize(p - light->GetPosition());
             vec3 lightNormal;
-            const vec3 pointOnLight =
-                light->GetRandomPointOnSurface(Direction, lightNormal, rng);
+            const vec3 pointOnLight = light->GetRandomPointOnSurface(Direction, lightNormal, rng);
 
             vec3 L = pointOnLight - p;
             const float squaredDistance = dot(L, L);
@@ -643,8 +624,7 @@ glm::vec3 PathTracer::SampleNEE_MIS(Ray &r, RandomGenerator &rng) const
                 Ray lightRay = Ray(p + EPSILON * L, L);
                 if (!m_Scene->TraceShadowRay(lightRay, distance - EPSILON))
                 {
-                    const float SolidAngle =
-                        LNdotL * light->m_Area / squaredDistance;
+                    const float SolidAngle = LNdotL * light->m_Area / squaredDistance;
                     const auto m = m_Materials->GetMaterial(light->materialIdx);
                     const vec3 Ld = BRDF * m.GetEmission() * NdotL / NEEpdf;
 
@@ -683,8 +663,7 @@ glm::vec3 PathTracer::SampleSkyBox(const glm::vec3 &dir) const
     {
         return vec3(0.0f);
     }
-    const float u = glm::min(
-        1.0f, glm::max(0.0f, (1.0f + atan2f(dir.x, -dir.z) / PI) / 2.0f));
+    const float u = glm::min(1.0f, glm::max(0.0f, (1.0f + atan2f(dir.x, -dir.z) / PI) / 2.0f));
     const float v = glm::min(1.0f, glm::max(0.0f, acosf(dir.y) / PI));
     return this->m_SkyBox->GetColorAt(u, 1.0f - v);
 }
@@ -728,8 +707,7 @@ glm::vec3 PathTracer::SampleReference(Ray &r, RandomGenerator &rng) const
 
         if (isTransparent)
         {
-            throughput *=
-                albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
+            throughput *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
             continue;
         }
 
@@ -760,26 +738,15 @@ glm::vec3 PathTracer::SampleReference(Ray &r, RandomGenerator &rng) const
     return E;
 }
 
-inline glm::vec3 PathTracer::Refract(const bool &flipNormal,
-                                     const material::Material &mat,
-                                     const glm::vec3 &normal,
-                                     const glm::vec3 &p, const float &t, Ray &r,
-                                     RandomGenerator &rng) const
+inline glm::vec3 PathTracer::Refract(const bool &flipNormal, const material::Material &mat, const glm::vec3 &normal,
+                                     const glm::vec3 &p, const float &t, Ray &r, RandomGenerator &rng) const
 {
     float n1, n2;
     glm::vec3 throughputUpdate = vec3(1.0f);
-    bool doAbsorption = false;
     if (flipNormal)
-    {
-        n1 = mat.refractionIndex;
-        n2 = 1.0f;
-    }
+        n1 = mat.refractionIndex, n2 = 1.0f;
     else
-    {
-        n1 = 1.0f;
-        n2 = mat.refractionIndex;
-        doAbsorption = true;
-    }
+        n1 = 1.0f, n2 = mat.refractionIndex;
 
     const float n = n1 / n2;
     const float cosTheta = dot(normal, -r.direction);
@@ -794,15 +761,13 @@ inline glm::vec3 PathTracer::Refract(const bool &flipNormal,
 
         if (rng.Rand(1.0f) > Fr)
         {
-            if (doAbsorption)
+            if (!flipNormal)
             {
-                throughputUpdate = glm::vec3(exp(-mat.absorption.r * t),
-                                             exp(-mat.absorption.g * t),
-                                             exp(-mat.absorption.b * t));
+                throughputUpdate =
+                    glm::vec3(exp(-mat.absorption.r * t), exp(-mat.absorption.g * t), exp(-mat.absorption.b * t));
             }
 
-            const vec3 dir = normalize(n * r.direction +
-                                       (normal) * (n * cosTheta - sqrtf(k)));
+            const vec3 dir = normalize(n * r.direction + normal * (n * cosTheta - sqrtf(k)));
             r = Ray(p + EPSILON * dir, dir);
             return throughputUpdate;
         }
@@ -818,8 +783,7 @@ bool PathTracer::TraceLightRay(Ray &r, SceneObject *light) const
     return !r.IsValid() || r.obj == light;
 }
 
-SceneObject *PathTracer::RandomPointOnLight(float &NEEpdf,
-                                            RandomGenerator &rng) const
+SceneObject *PathTracer::RandomPointOnLight(float &NEEpdf, RandomGenerator &rng) const
 {
     const std::vector<SceneObject *> &lights = m_Scene->GetLights();
     if (!m_LightCount)
@@ -831,11 +795,9 @@ SceneObject *PathTracer::RandomPointOnLight(float &NEEpdf,
     int winningIdx = 0;
     float previous = 0;
 
-    for (uint i = 0; i < m_LightCount;
-         i++) // get light corresponding with winning ticket
+    for (uint i = 0; i < m_LightCount; i++) // get light corresponding with winning ticket
     {
-        if (m_LightLotteryTickets[i] > previous &&
-            randomf <= m_LightLotteryTickets[i])
+        if (m_LightLotteryTickets[i] > previous && randomf <= m_LightLotteryTickets[i])
         {
             winningIdx = i;
             break;
@@ -868,15 +830,12 @@ void PathTracer::Resize(Texture *newOutput)
     }
 }
 
-glm::vec3 PathTracer::SampleReferenceMicrofacet(Ray &r,
-                                                RandomGenerator &rng) const
+glm::vec3 PathTracer::SampleReferenceMicrofacet(Ray &r, RandomGenerator &rng) const
 {
     glm::vec3 E = vec3(0.0f);
     glm::vec3 throughput = vec3(1.0f);
-    glm::vec3 u{}, v{},
-        w{}; // For the transformation from world to local and back
-    glm::vec3 wiLocal{}, wmLocal{}, wm{}, woLocal{},
-        wo{}; // The in and outgoing path vectors
+    glm::vec3 u{}, v{}, w{};                               // For the transformation from world to local and back
+    glm::vec3 wiLocal{}, wmLocal{}, wm{}, woLocal{}, wo{}; // The in and outgoing path vectors
 
     for (uint depth = 0; depth < LOOP_DEPTH; depth++)
     {
@@ -945,19 +904,16 @@ glm::vec3 PathTracer::SampleReferenceMicrofacet(Ray &r,
                 {
                     if (doAbsorption)
                     {
-                        absorption = glm::vec3(exp(-mat.absorption.r * r.t),
-                                               exp(-mat.absorption.g * r.t),
+                        absorption = glm::vec3(exp(-mat.absorption.r * r.t), exp(-mat.absorption.g * r.t),
                                                exp(-mat.absorption.b * r.t));
                     }
 
                     throughput *= absorption;
-                    woLocal = glm::normalize(
-                        n * -wiLocal + wmLocal * (n * cosTheta - sqrtf(k)));
+                    woLocal = glm::normalize(n * -wiLocal + wmLocal * (n * cosTheta - sqrtf(k)));
                 }
                 else
                 {
-                    woLocal =
-                        wmLocal * 2.0f * glm::dot(wmLocal, wiLocal) - wiLocal;
+                    woLocal = wmLocal * 2.0f * glm::dot(wmLocal, wiLocal) - wiLocal;
                 }
             }
             else
@@ -972,8 +928,7 @@ glm::vec3 PathTracer::SampleReferenceMicrofacet(Ray &r,
         }
         else
         {
-            woLocal = wmLocal * 2.0f * glm::dot(wmLocal, wiLocal) -
-                      wiLocal; // mirror wi in wm to get wo
+            woLocal = wmLocal * 2.0f * glm::dot(wmLocal, wiLocal) - wiLocal; // mirror wi in wm to get wo
             const float weight = mf.weight(woLocal, wiLocal, wmLocal);
             wo = localToWorldMicro(woLocal, u, v, w);
             throughput *= albedoColor * weight;
@@ -988,10 +943,8 @@ glm::vec3 PathTracer::SampleNEEMicrofacet(Ray &r, RandomGenerator &rng) const
 {
     glm::vec3 E = vec3(0.0f);
     glm::vec3 throughput = vec3(1.0f);
-    glm::vec3 u{}, v{},
-        w{}; // For the transformation from world to local and back
-    glm::vec3 wiLocal{}, wmLocal{}, wm{}, woLocal{}, wo{},
-        wi{}; // The in and outgoing path vectors
+    glm::vec3 u{}, v{}, w{};                                     // For the transformation from world to local and back
+    glm::vec3 wiLocal{}, wmLocal{}, wm{}, woLocal{}, wo{}, wi{}; // The in and outgoing path vectors
 
     for (uint depth = 0; depth < LOOP_DEPTH; depth++)
     {
@@ -1060,19 +1013,16 @@ glm::vec3 PathTracer::SampleNEEMicrofacet(Ray &r, RandomGenerator &rng) const
                 {
                     if (doAbsorption)
                     {
-                        absorption = {exp(-mat.absorption.r * r.t),
-                                      exp(-mat.absorption.g * r.t),
+                        absorption = {exp(-mat.absorption.r * r.t), exp(-mat.absorption.g * r.t),
                                       exp(-mat.absorption.b * r.t)};
                     }
 
                     throughput *= absorption;
-                    woLocal = glm::normalize(
-                        n * -wiLocal + wmLocal * (n * cosTheta - sqrtf(k)));
+                    woLocal = glm::normalize(n * -wiLocal + wmLocal * (n * cosTheta - sqrtf(k)));
                 }
                 else
                 {
-                    woLocal =
-                        wmLocal * 2.0f * glm::dot(wmLocal, wiLocal) - wiLocal;
+                    woLocal = wmLocal * 2.0f * glm::dot(wmLocal, wiLocal) - wiLocal;
                 }
             }
             else
@@ -1099,8 +1049,7 @@ glm::vec3 PathTracer::SampleNEEMicrofacet(Ray &r, RandomGenerator &rng) const
             { // if there are no lights
                 const vec3 Direction = glm::normalize(p - light->GetPosition());
                 vec3 lightNormal;
-                const vec3 pointOnLight =
-                    light->GetRandomPointOnSurface(Direction, lightNormal, rng);
+                const vec3 pointOnLight = light->GetRandomPointOnSurface(Direction, lightNormal, rng);
 
                 vec3 L = pointOnLight - p;
                 const float squaredDistance = dot(L, L);
@@ -1115,15 +1064,12 @@ glm::vec3 PathTracer::SampleNEEMicrofacet(Ray &r, RandomGenerator &rng) const
                     Ray lightRay = Ray(p + EPSILON * L, L);
                     if (!m_Scene->TraceShadowRay(r, lDistance))
                     {
-                        const float SolidAngle =
-                            LNdotL * light->m_Area / squaredDistance;
-                        const auto lightMat =
-                            m_Materials->GetMaterial(light->materialIdx);
+                        const float SolidAngle = LNdotL * light->m_Area / squaredDistance;
+                        const auto lightMat = m_Materials->GetMaterial(light->materialIdx);
                         const float neeWeight = 1.0f - mf.weight(L, wi, wm);
                         if (neeWeight > 0.0f)
                         {
-                            const vec3 Ld = mat.GetAlbedoColor(r.obj, p) *
-                                            weight * lightMat.GetEmission() *
+                            const vec3 Ld = mat.GetAlbedoColor(r.obj, p) * weight * lightMat.GetEmission() *
                                             SolidAngle * NdotL / NEEpdf;
                             E += throughput * Ld * neeWeight;
                         }

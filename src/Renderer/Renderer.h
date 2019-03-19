@@ -28,7 +28,7 @@ class Renderer
 
     virtual void Resize(Texture *newOutput) = 0;
 
-    virtual ~Renderer(){};
+    virtual ~Renderer() = default;
 
     virtual void SwitchSkybox() = 0;
 
@@ -43,16 +43,16 @@ class Renderer
         case (IS):
             return "IS";
         case (NEE_IS):
-            return "NEE, IS";
+            return "NEE IS";
         case (NEE_MIS):
-            return "NEE, MIS";
+            return "NEE MIS";
         case (ReferenceMicrofacet):
-            return "REFERENCE MICROFACET";
+            return "Ref MF";
         case (NEEMicrofacet):
-            return "NEE MICROFACET";
+            return "NEE MF";
         case (Reference):
         default:
-            return "Reference";
+            return "Ref";
         }
     }
 

@@ -23,29 +23,27 @@ inline float3 SampleReference(global Ray *ray, global Material *materials, globa
                               global float3 *textureBuffer, global TextureInfo *textureInfo, global float3 *skyDome,
                               global TextureInfo *skyInfo, int hasSkyDome, uint *seed)
 {
-    float3 origin = ray->origin;
-    float3 direction = ray->direction;
     float3 E = (float3)(0, 0, 0);
     float3 throughput;
     float PDF = 1.0f / (2.0f * PI);
+    Ray r;
 
     for (int si = 0; si < SAMPLE_COUNT; si++)
     {
         throughput = (float3)(1, 1, 1);
-        ray->origin = origin;
-        ray->direction = direction;
+        r = *ray;
 
         for (uint depth = 0; depth < MAX_DEPTH; depth++)
         {
-            ray->t = 1e34f;
-            ray->hit_idx = -1;
-            Trace(ray, triangles, nodes, mNodes, primitiveIndices);
-            if (ray->hit_idx < 0)
+            r.t = 1e34f;
+            r.hit_idx = -1;
+            TraceRay(&r, triangles, nodes, mNodes, primitiveIndices);
+            if (r.hit_idx < 0)
             {
                 if (hasSkyDome)
                 {
-                    const float u = (1.0f + atan2(ray->direction.x, -ray->direction.z) / PI) / 2.0f;
-                    const float v = 1.0f - acos(ray->direction.y) / PI;
+                    const float u = (1.0f + atan2(r.direction.x, -r.direction.z) / PI) / 2.0f;
+                    const float v = 1.0f - acos(r.direction.y) / PI;
                     const uint px = (u * (skyInfo->width - 1));
                     const uint py = (v * (skyInfo->height - 1));
                     const uint idx = px + py * skyInfo->width;
@@ -54,59 +52,55 @@ inline float3 SampleReference(global Ray *ray, global Material *materials, globa
                 break;
             }
 
-            uint matIdx = triangles[ray->hit_idx].mat_idx;
-            float3 hitPoint = ray->origin + ray->t * ray->direction;
+            Triangle t = triangles[r.hit_idx];
+            float3 hitPoint = r.origin + r.t * r.direction;
+            Material mat = materials[t.mat_idx];
 
-            if (materials[matIdx].flags > 0)
+            if (mat.flags > 0)
             { // mat is a light
-                E += throughput *
-                     (float3)(materials[matIdx].emissionR, materials[matIdx].emissionG, materials[matIdx].emissionB);
+                E += throughput * mat.emission;
                 break;
             }
 
-            const float3 bary = GetBaryCentricCoordinatesTriangle(hitPoint, &triangles[ray->hit_idx]);
-            float3 normal = normalize(bary.x * triangles[ray->hit_idx].n0 + bary.y * triangles[ray->hit_idx].n1 +
-                                      bary.z * triangles[ray->hit_idx].n2);
+            const float3 bary = GetBaryCentricCoordinatesTriangleLocal(hitPoint, t);
+            float3 normal = normalize(bary.x * t.n0 + bary.y * t.n1 + bary.z * t.n2);
 
-            float2 t0 = (float2)(triangles[ray->hit_idx].t0x, triangles[ray->hit_idx].t0y);
-            float2 t1 = (float2)(triangles[ray->hit_idx].t1x, triangles[ray->hit_idx].t1y);
-            float2 t2 = (float2)(triangles[ray->hit_idx].t2x, triangles[ray->hit_idx].t2y);
+            float2 t0 = (float2)(t.t0x, t.t0y);
+            float2 t1 = (float2)(t.t1x, t.t1y);
+            float2 t2 = (float2)(t.t2x, t.t2y);
             float2 texCoords = bary.x * t0 + bary.y * t1 + bary.z * t2;
+            float3 diffuseColor = GetDiffuseColor(mat, textureBuffer, textureInfo, texCoords);
 
-            float3 diffuseColor = GetDiffuseColor(&materials[matIdx], textureBuffer, textureInfo, texCoords);
-            int flipNormal = dot(normal, ray->direction) > 0.f ? 1 : 0;
+            int flipNormal = dot(normal, r.direction) > 0.f ? 1 : 0;
             normal = normal * (1.0f - 2.0f * (float)flipNormal);
 
-            ray->origin = hitPoint;
+            r.origin = hitPoint;
 
             // refraction
-            if (materials[matIdx].transparency > 0.0f)
+            if (mat.transparency > 0.0f)
             {
                 float3 absorption;
-                ray->direction = normalize(
-                    Refract(flipNormal, &materials[matIdx], ray->direction, normal, seed, &absorption, ray->t));
-                ray->origin += EPSILON * ray->direction;
+                r.direction = normalize(Refract(flipNormal, mat, r.direction, normal, seed, &absorption, r.t));
+                r.origin += EPSILON * r.direction;
                 throughput *= diffuseColor * absorption;
                 continue;
             }
-
-            // reflection
-            if (materials[matIdx].diffuse_intensity < 1.0f)
+            else if (mat.diffuse_intensity < 1.0f) // reflection
             {
                 float lottery = RandomFloat(seed);
-                if (lottery > materials[matIdx].diffuse_intensity)
+                if (lottery > mat.diffuse_intensity)
                 {
-                    ray->direction = normalize(Reflect(ray->direction, normal));
-                    ray->origin += EPSILON * ray->direction;
-                    throughput = throughput * diffuseColor;
+                    r.direction = normalize(Reflect(r.direction, normal));
+                    r.origin += EPSILON * r.direction;
+                    throughput *= diffuseColor;
                     continue;
                 }
             }
 
             // diffuse
-            ray->direction = normalize(DiffuseReflection(normal, seed));
-            throughput *= (diffuseColor * INVPI) * dot(ray->direction, normal) / PDF;
-            ray->origin += EPSILON * ray->direction;
+            r.direction = normalize(DiffuseReflection(normal, seed));
+            throughput *= (diffuseColor * INVPI) * dot(r.direction, normal) / PDF;
+            r.origin += EPSILON * r.direction;
         }
     }
 
@@ -119,29 +113,28 @@ float3 SampleNEE_MIS(global Ray *ray, global Material *materials, global Triangl
                      global float3 *skyDome, global TextureInfo *skyInfo, int hasSkyDome, float lightArea,
                      int lightCount, uint *seed)
 {
-    float3 origin = ray->origin, direction = ray->direction;
     float3 E = (float3)(0, 0, 0), normal;
     float3 throughput, tUpdate, BRDF;
     float PDF;
+    Ray r;
 
     for (int si = 0; si < SAMPLE_COUNT; si++)
     {
+        r = *ray;
         throughput = tUpdate = (float3)(1, 1, 1);
         int specular = 1;
-        ray->origin = origin;
-        ray->direction = direction;
 
         for (uint depth = 0; depth < MAX_DEPTH; depth++)
         {
-            ray->t = 1e34f;
-            ray->hit_idx = -1;
-            Trace(ray, triangles, nodes, mNodes, primitiveIndices);
-            if (ray->hit_idx < 0)
+            r.t = 1e34f;
+            r.hit_idx = -1;
+            TraceRay(&r, triangles, nodes, mNodes, primitiveIndices);
+            if (r.hit_idx < 0)
             {
                 if (hasSkyDome)
                 {
-                    const float u = (1.0f + atan2(ray->direction.x, -ray->direction.z) / PI) / 2.0f;
-                    const float v = 1.0f - acos(ray->direction.y) / PI;
+                    const float u = (1.0f + atan2(r.direction.x, -r.direction.z) / PI) / 2.0f;
+                    const float v = 1.0f - acos(r.direction.y) / PI;
                     const uint px = (u * (skyInfo->width - 1));
                     const uint py = (v * (skyInfo->height - 1));
                     const uint idx = px + py * skyInfo->width;
@@ -150,41 +143,37 @@ float3 SampleNEE_MIS(global Ray *ray, global Material *materials, global Triangl
                 break;
             }
 
-            uint matIdx = triangles[ray->hit_idx].mat_idx;
-            float3 hitPoint = ray->origin + ray->t * ray->direction;
+            Triangle t = triangles[r.hit_idx];
+            Material mat = materials[t.mat_idx];
+            float3 hitPoint = r.origin + r.t * r.direction;
 
-            if (materials[matIdx].flags == 1)
+            if (mat.flags == 1)
             { // mat is a light
-                float3 lightColor =
-                    (float3)(materials[matIdx].emissionR, materials[matIdx].emissionG, materials[matIdx].emissionB);
                 if (depth <= 0)
                 {
-                    E += throughput * lightColor;
+                    E += throughput * mat.emission;
                 }
                 else if (specular)
                 {
-                    E += throughput * lightColor * tUpdate;
+                    E += throughput * mat.emission * tUpdate;
                 }
                 else
                 {
-                    global Triangle *light = &triangles[ray->hit_idx];
-                    const float squaredDistance = ray->t * ray->t;
-                    float3 lightNormal = GetTriangleNormal(hitPoint, light);
-                    if (dot(lightNormal, ray->direction) > 0.0f)
-                    {
+                    const float squaredDistance = r.t * r.t;
+                    float3 lightNormal = GetTriangleNormalLocal(hitPoint, t);
+                    if (dot(lightNormal, r.direction) > 0.0f)
                         lightNormal *= -1.0f;
-                    }
 
-                    const float NdotL = dot(normal, ray->direction);
-                    const float LNdotL = dot(lightNormal, -ray->direction);
-                    const float SolidAngle = LNdotL * light->m_Area / squaredDistance;
-                    const float InversePDFnee = lightArea / light->m_Area;
+                    const float NdotL = dot(normal, r.direction);
+                    const float LNdotL = dot(lightNormal, -r.direction);
+                    const float SolidAngle = LNdotL * t.m_Area / squaredDistance;
+                    const float InversePDFnee = lightArea / t.m_Area;
                     const float lightPDF = 1.0f / SolidAngle;
                     const float brdfPDF = NdotL / PI;
 
                     if (lightPDF > 0.0f && brdfPDF > 0.0f)
                     {
-                        float3 Ld = BRDF * lightColor * NdotL * InversePDFnee;
+                        float3 Ld = BRDF * mat.emission * NdotL * InversePDFnee;
 
                         const float w1 = brdfPDF / (brdfPDF + lightPDF);
                         const float w2 = lightPDF / (brdfPDF + lightPDF);
@@ -197,42 +186,38 @@ float3 SampleNEE_MIS(global Ray *ray, global Material *materials, global Triangl
             throughput *= tUpdate;
             tUpdate = (float3)(1, 1, 1);
 
-            const float3 bary = GetBaryCentricCoordinatesTriangle(hitPoint, &triangles[ray->hit_idx]);
-            normal = normalize(bary.x * triangles[ray->hit_idx].n0 + bary.y * triangles[ray->hit_idx].n1 +
-                               bary.z * triangles[ray->hit_idx].n2);
+            const float3 bary = GetBaryCentricCoordinatesTriangleLocal(hitPoint, t);
+            normal = normalize(bary.x * t.n0 + bary.y * t.n1 + bary.z * t.n2);
 
-            const float2 t0 = (float2)(triangles[ray->hit_idx].t0x, triangles[ray->hit_idx].t0y);
-            const float2 t1 = (float2)(triangles[ray->hit_idx].t1x, triangles[ray->hit_idx].t1y);
-            const float2 t2 = (float2)(triangles[ray->hit_idx].t2x, triangles[ray->hit_idx].t2y);
+            const float2 t0 = (float2)(t.t0x, t.t0y);
+            const float2 t1 = (float2)(t.t1x, t.t1y);
+            const float2 t2 = (float2)(t.t2x, t.t2y);
             const float2 texCoords = bary.x * t0 + bary.y * t1 + bary.z * t2;
+            float3 diffuseColor = GetDiffuseColor(mat, textureBuffer, textureInfo, texCoords);
 
-            const float3 diffuseColor = GetDiffuseColor(&materials[matIdx], textureBuffer, textureInfo, texCoords);
-            BRDF = diffuseColor * INVPI;
+            BRDF = mat.diffuse * INVPI;
 
-            const int flipNormal = dot(normal, ray->direction) > 0.f ? 1 : 0;
+            const int flipNormal = dot(normal, r.direction) > 0.f ? 1 : 0;
             normal = normal * (1.0f - 2.0f * (float)flipNormal);
-            ray->origin = hitPoint;
+            r.origin = hitPoint;
 
             // refraction
-            if (materials[matIdx].transparency > 0.0f)
+            if (mat.transparency > 0.0f)
             {
                 float3 absorption;
-                ray->direction = normalize(
-                    Refract(flipNormal, &materials[matIdx], ray->direction, normal, seed, &absorption, ray->t));
-                ray->origin += EPSILON * ray->direction;
+                r.direction = normalize(Refract(flipNormal, mat, r.direction, normal, seed, &absorption, r.t));
+                r.origin += EPSILON * r.direction;
                 throughput *= diffuseColor * absorption;
                 specular = 1;
                 continue;
             }
-
-            // reflection
-            if (materials[matIdx].diffuse_intensity < 1.0f)
+            else if (mat.diffuse_intensity < 1.0f) // reflection
             {
                 float lottery = RandomFloat(seed);
-                if (lottery > materials[matIdx].diffuse_intensity)
+                if (lottery > mat.diffuse_intensity)
                 {
-                    ray->direction = normalize(Reflect(ray->direction, normal));
-                    ray->origin += EPSILON * ray->direction;
+                    r.direction = normalize(Reflect(r.direction, normal));
+                    r.origin += EPSILON * r.direction;
                     throughput = throughput * diffuseColor;
                     specular = 1;
                     continue;
@@ -269,12 +254,12 @@ float3 SampleNEE_MIS(global Ray *ray, global Material *materials, global Triangl
 
                 if (NdotL > 0.f && LNdotL > 0.f)
                 {
-                    ray->origin = hitPoint + EPSILON * L;
-                    ray->direction = L;
-                    ray->t = 1e34f;
-                    ray->hit_idx = -1;
-                    Trace(ray, triangles, nodes, mNodes, primitiveIndices);
-                    if (ray->hit_idx == lightIndices[winningIdx])
+                    r.origin = hitPoint + EPSILON * L;
+                    r.direction = L;
+                    r.t = 1e34f;
+                    r.hit_idx = -1;
+                    TraceRay(&r, triangles, nodes, mNodes, primitiveIndices);
+                    if (r.hit_idx == lightIndices[winningIdx])
                     {
                         const float SolidAngle = LNdotL * triangle.m_Area / squaredDistance;
                         const float3 lightColor = material.emission;
@@ -293,12 +278,12 @@ float3 SampleNEE_MIS(global Ray *ray, global Material *materials, global Triangl
                 }
             }
 
-            ray->origin = hitPoint;
-            ray->direction = normalize(DiffuseReflectionCosWeighted(normal, seed));
-            ray->origin += EPSILON * ray->direction;
+            r.origin = hitPoint;
+            r.direction = normalize(DiffuseReflectionCosWeighted(normal, seed));
+            r.origin += EPSILON * r.direction;
 
             specular = 0;
-            const float NdotR = dot(normal, ray->direction);
+            const float NdotR = dot(normal, r.direction);
             PDF = NdotR / PI;
             if (PDF <= 0.0f)
                 break;
@@ -371,9 +356,9 @@ inline float3 SampleMicrofacet(global Ray *r, global Material *materials, global
             float2 t1 = (float2)(t.t1x, t.t1y);
             float2 t2 = (float2)(t.t2x, t.t2y);
             float2 texCoords = bary.x * t0 + bary.y * t1 + bary.z * t2;
+            float3 diffuseColor = GetDiffuseColor(mat, textureBuffer, textureInfo, texCoords);
 
-            float3 diffuseColor = GetDiffuseColorLocal(mat, textureBuffer, textureInfo, texCoords);
-            int flipNormal = dot(normal, ray.direction) > 0.f ? 1 : 0;
+            int flipNormal = dot(normal, ray.direction) > 0.0f ? 1 : 0;
             normal = normal * (1.0f - 2.0f * (float)flipNormal);
 
             float weight;
@@ -402,8 +387,8 @@ inline float3 SampleMicrofacet(global Ray *r, global Material *materials, global
 
                     if (RandomFloat(seed) > Fr)
                     {
-                        float3 absorption = (float3)(1, 1, 1);
-                        if (flipNormal)
+                        float3 absorption = (float3)(1.0f, 1.0f, 1.0f);
+                        if (!flipNormal)
                         {
                             absorption = (float3)(exp(-mat.absorptionR * ray.t), exp(-mat.absorptionG * ray.t),
                                                   exp(-mat.absorptionB * ray.t));

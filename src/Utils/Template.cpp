@@ -4,8 +4,8 @@
 #include "Shared.h"
 #include "Utils/Timer.h"
 
-#define SCRWIDTH 1024
-#define SCRHEIGHT 768
+constexpr int SCRWIDTH = 1024;
+constexpr int SCRHEIGHT = 768;
 
 int main(int argc, char *argv[])
 {
@@ -13,12 +13,20 @@ int main(int argc, char *argv[])
     SDL_Init(SDL_INIT_VIDEO);
 
     bool oFullScreen = false;
+    RendererType rendererType = CPU;
+    std::string file;
 
-    for (int i = 2; i < argc; i++)
+    for (int i = 1; i < argc; i++)
     {
         const std::string str = argv[i];
         if (str == "--fullscreen" || str == "-f")
             oFullScreen = true;
+        else if (str == "--gpu" || str == "-g")
+            rendererType = GPU;
+        else if (str == "--cpu" || str == "-c")
+            rendererType = CPU;
+        else
+            file = str;
     }
 
     unsigned int flags = oFullScreen ? SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN : SDL_WINDOW_OPENGL;
@@ -54,7 +62,8 @@ int main(int argc, char *argv[])
     SDL_SetWindowSize(gSDLContext, SCRWIDTH, SCRHEIGHT);
 
     int exitApp = 0;
-    auto app = new Application(gSDLContext, RendererType::GPU, SCRWIDTH, SCRHEIGHT, argc >= 2 ? argv[1] : nullptr);
+    const char *f = file.c_str();
+    auto app = new Application(gSDLContext, rendererType, SCRWIDTH, SCRHEIGHT, file.empty() ? nullptr : f);
 
     Timer t, drawTimer;
 
@@ -121,9 +130,9 @@ int main(int argc, char *argv[])
 
 uint Vec3ToInt(const glm::vec3 &vec)
 {
-    const float fr = sqrtf(glm::min(glm::max(vec.r, 0.0f), 1.0f)) * 255.99f;
-    const float fg = sqrtf(glm::min(glm::max(vec.g, 0.0f), 1.0f)) * 255.99f;
-    const float fb = sqrtf(glm::min(glm::max(vec.b, 0.0f), 1.0f)) * 255.99f;
+    const float fr = sqrtf(glm::clamp(vec.r, 0.0f, 1.0f)) * 255.99f;
+    const float fg = sqrtf(glm::clamp(vec.g, 0.0f, 1.0f)) * 255.99f;
+    const float fb = sqrtf(glm::clamp(vec.b, 0.0f, 1.0f)) * 255.99f;
 
     const auto r = uint(fr) << 0;
     const auto g = uint(fg) << 8;

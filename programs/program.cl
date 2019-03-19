@@ -3,7 +3,7 @@
 #define DEBUG_BVH 0
 #define DEBUG_RAND 0
 #define SAMPLE_COUNT 1
-#define MAX_DEPTH 16
+#define MAX_DEPTH 10
 #define VARIANCE_REDUCTION 0
 #define MICROFACETS 1
 
@@ -343,7 +343,7 @@ kernel void shade(global Ray *rays,                  // 0
     ray.direction = normalize(DiffuseReflection(normal, seed));
 
     // Update throughput
-    ray.color *= GetDiffuseColorLocal(mat, textureBuffer, textureInfo, texCoords);
+    ray.color *= GetDiffuseColor(mat, textureBuffer, textureInfo, texCoords);
     ray.color *= INVPI * dot(ray.direction, normal);
     ray.color *= 2.0f * PI;
 

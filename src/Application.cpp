@@ -1,7 +1,7 @@
 #include "Application.h"
 #include "Materials/MaterialManager.h"
 
-#define FPS_FRAMES 100
+#define FPS_FRAMES 20
 #define TEAPOT 0
 #define CUBES 0
 
@@ -22,7 +22,8 @@ Application::Application(SDL_Window *window, RendererType type, int width, int h
     using namespace material;
     using namespace bvh;
 
-    m_TPool = new ctpl::ThreadPool(ctpl::nr_of_cores);
+    const auto cores = ctpl::nr_of_cores;
+    m_TPool = new ctpl::ThreadPool(cores);
     m_ObjectList = new SceneObjectList();
     m_GpuList = new GpuTriangleList();
 
@@ -31,7 +32,7 @@ Application::Application(SDL_Window *window, RendererType type, int width, int h
     m_DrawShader = new Shader("shaders/quad.vert", "shaders/quad.frag");
     m_Camera = Camera(m_Width, m_Height, 80.f);
 
-    unsigned int defaultMaterial = static_cast<unsigned int>(
+    auto defaultMaterial = static_cast<unsigned int>(
         material::MaterialManager::GetInstance()->AddMaterial(material::Material(1.0f, vec3(1.0f), 8.0f)));
 
     if (m_Type == CPU || m_Type == CPU_RAYTRACER)
@@ -39,7 +40,7 @@ Application::Application(SDL_Window *window, RendererType type, int width, int h
         if (scene != nullptr)
             model::Load(scene, defaultMaterial, glm::vec3(0.0f), 1.0f, m_ObjectList);
         else
-            Micromaterials(m_ObjectList);
+            Dragon(m_ObjectList);
     }
     else
     {
@@ -47,7 +48,6 @@ Application::Application(SDL_Window *window, RendererType type, int width, int h
             model::Load(scene, defaultMaterial, glm::vec3(0.0f), 1.0f, m_GpuList);
         else
             Dragon(m_GpuList);
-            //Micromaterials(m_GpuList);
 
         if (m_GpuList->GetTriangles().empty())
             utils::FatalError(__FILE__, __LINE__, "No triangles for GPU, exiting.", "GPU Init");
@@ -458,54 +458,38 @@ void Application::Draw(float deltaTime)
 {
     HandleKeys(deltaTime);
 
+    frametimes[frametimeIndex] = deltaTime;
+    frametimeIndex = (frametimeIndex + 1) % FPS_FRAMES;
+    float avgFrametime = 0;
+    for (float &fp : frametimes)
+        avgFrametime += fp;
+
     if (m_BVHDebugMode && m_BVHRenderer != nullptr)
     {
         m_BVHRenderer->Render(m_Screen);
+
+        int BVH = m_Type == CPU ? m_Scene->GetActiveDynamicTreeIndex() : 0;
+
+        for (float fp : frametimes)
+        {
+            avgFrametime += fp;
+        }
+
+        avgFrametime = (1000.f / (avgFrametime / FPS_FRAMES));
+        std::sprintf(fpsText, "FPS: %.2f, BVH: %i", avgFrametime, BVH);
     }
     else
     {
         m_Renderer->Render(m_Screen);
 
-        if (m_Type == CPU)
-        {
-            std::sprintf(msText, "Frametime: %.2f", deltaTime);
-            std::sprintf(infoText, "FOV: %.0f", m_Camera.GetFOV());
-            sprintf(sampleText, "Samples: %i, Mode: %s, BVH: %i", ((PathTracer *)m_Renderer)->GetSamples(),
-                    ((PathTracer *)m_Renderer)->GetModeString(), m_Scene->GetActiveDynamicTreeIndex());
+        int BVH = m_Type == CPU ? m_Scene->GetActiveDynamicTreeIndex() : 0;
 
-            frametimes[frametimeIndex] = deltaTime;
-            frametimeIndex = (frametimeIndex + 1) % FPS_FRAMES;
-            float avgFrametime = 0;
-
-            for (float fp : frametimes)
-            {
-                avgFrametime += fp;
-            }
-
-            avgFrametime = 1000.f / (avgFrametime / FPS_FRAMES);
-            std::sprintf(fpsText, "FPS: %.2f", avgFrametime);
-
-            m_Screen->Print(msText, 0, 2, 0xFFFFFF);
-            m_Screen->Print(fpsText, 0, 10, 0xFFFFFF);
-            m_Screen->Print(infoText, 0, 18, 0xFFFFFF);
-            m_Screen->Print(sampleText, 0, 26, 0xFFFFFF);
-        }
-        else
-        {
-            frametimes[frametimeIndex] = deltaTime;
-            frametimeIndex = (frametimeIndex + 1) % FPS_FRAMES;
-            float avgFrametime = 0;
-            for (float fp : frametimes)
-            {
-                avgFrametime += fp;
-            }
-
-            avgFrametime = (1000.f / (avgFrametime / FPS_FRAMES));
-            std::sprintf(fpsText, "FPS: %.2f, Mode: %s", avgFrametime, m_Renderer->GetModeString());
-
-            SDL_SetWindowTitle(m_Window, fpsText);
-        }
+        avgFrametime = (1000.f / (avgFrametime / FPS_FRAMES));
+        std::sprintf(fpsText, "FPS: %.2f, Mode: %s, BVH: %i, Samples: %i", avgFrametime, m_Renderer->GetModeString(),
+                     BVH, m_Renderer->GetSamples());
     }
+
+    SDL_SetWindowTitle(m_Window, fpsText);
 
     if (m_Type == CPU || m_Type == CPU_RAYTRACER)
         m_OutputTexture[m_tIndex]->flushData();

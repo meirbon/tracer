@@ -1,63 +1,53 @@
 #ifndef MATERIAL_H
 #define MATERIAL_H
 
-typedef struct TextureInfo {
+typedef struct TextureInfo
+{
     int width, height, offset, dummy;
 } TextureInfo;
 
-typedef struct Material {
+typedef struct Material
+{
     union {
         float3 diffuse;
-        struct {
+        struct
+        {
             float diffuseR, diffuseG, diffuseB; // 12
-            float diffuse_intensity; // 16
+            float diffuse_intensity;            // 16
         };
     };
     union {
         float3 emission;
-        struct {
+        struct
+        {
             float emissionR, emissionG, emissionB; // 28
-            float roughness; // 32
+            float roughness;                       // 32
         };
     };
-    union {
-        float3 absorption;
-        struct {
-            float absorptionR, absorptionG, absorptionB; // 44
-            float refractionIdx; // 48
-        };
-    };
+    float absorptionR, absorptionG, absorptionB; // 44
+    float refractionIdx;                         // 48
 
     float transparency; // 52
-    int textureIdx; // 56
-    uint flags; // 60
+    int textureIdx;     // 56
+    uint flags;         // 60
     float dummy;
 } Material;
 
-float3 GetDiffuseColor(global Material* mat, global float3* textures, global TextureInfo* texInfo, float2 texCoords);
-float3 GetDiffuseColorLocal(Material mat, global float3* textures, global TextureInfo* texInfo, float2 texCoords);
+float3 GetDiffuseColor(Material mat, global float3 *textures, global TextureInfo *texInfo, float2 texCoords);
 
-inline float3 GetDiffuseColor(global Material* mat, global float3* textures, global TextureInfo* texInfo, float2 texCoords)
+inline float3 GetDiffuseColor(Material mat, global float3 *textures, global TextureInfo *texInfo,
+                              float2 texCoords)
 {
-    if (mat->textureIdx > -1) {
-        const uint x = min(texInfo->width, max(0, (int)(texCoords.x * texInfo[mat->textureIdx].width) - 1));
-        const uint y = min(texInfo->height, max(0, (int)(texCoords.y * texInfo[mat->textureIdx].height) - 1));
-        const uint idx = texInfo[mat->textureIdx].offset + y * texInfo[mat->textureIdx].width + x;
-        return textures[idx];
-    } else {
-        return (float3)(mat->diffuseR, mat->diffuseG, mat->diffuseB);
-    }
-}
-
-inline float3 GetDiffuseColorLocal(Material mat, global float3* textures, global TextureInfo* texInfo, float2 texCoords)
-{
-    if (mat.textureIdx > -1) {
+    if (mat.textureIdx > -1)
+    {
         const uint x = min(texInfo->width, max(0, (int)(texCoords.x * texInfo[mat.textureIdx].width) - 1));
         const uint y = min(texInfo->height, max(0, (int)(texCoords.y * texInfo[mat.textureIdx].height) - 1));
         const uint idx = texInfo[mat.textureIdx].offset + y * texInfo[mat.textureIdx].width + x;
         return textures[idx];
-    } else {
-        return (float3)(mat.diffuseR, mat.diffuseG, mat.diffuseB);
+    }
+    else
+    {
+        return mat.diffuse;
     }
 }
 

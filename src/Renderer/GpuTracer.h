@@ -4,12 +4,12 @@
 
 #include "BVH/MBVHTree.h"
 #include "BVH/StaticBVHTree.h"
-#include "Renderer/Camera.h"
-#include "GL/OpenCL.h"
 #include "GL/Buffer.h"
+#include "GL/OpenCL.h"
 #include "GL/Texture.h"
-#include "Renderer/PathTracer.h"
 #include "Primitives/GpuTriangleList.h"
+#include "Renderer/Camera.h"
+#include "Renderer/PathTracer.h"
 
 struct TextureInfo
 {
@@ -83,18 +83,20 @@ class GpuTracer : public Renderer
         switch (m_Mode)
         {
         case (NEE_MIS):
-            return "NEE, MIS";
+            return "NEE MIS";
         case (Reference):
-            return "Reference";
+            return "Ref";
         case (NEE):
         case (IS):
         case (NEE_IS):
         case (NEEMicrofacet):
         case (ReferenceMicrofacet):
         default:
-            return "Reference Microfacet";
+            return "Ref MF";
         }
     }
+
+    inline int GetSamples() const override { return m_Samples; }
 
   private:
     Camera *m_Camera = nullptr;

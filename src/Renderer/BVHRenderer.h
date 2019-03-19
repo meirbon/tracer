@@ -19,6 +19,6 @@ class BVHRenderer : public Renderer
     Camera *m_Camera;
     WorldScene *m_Scene;
     ctpl::ThreadPool *m_TPool;
-    std::vector<std::future<void>> *tResults = nullptr;
+    std::vector<std::future<void>> tResults;
     int m_Width, m_Height, m_Tiles;
 };
