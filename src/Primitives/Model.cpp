@@ -3,11 +3,13 @@
 #include "Primitives/Triangle.h"
 #include "Utils/Messages.h"
 
+#include <iostream>
+
 #define TINYOBJLOADER_IMPLEMENTATION
 
 #include "Utils/tiny_obj_loader.h"
 
-void model::Load(const std::string &inputFile, uint matIndex, vec3 translation,
+void prims::Load(const std::string &inputFile, uint matIndex, vec3 translation,
                  float scale, SceneObjectList *objectList, glm::mat4 transform)
 {
     std::vector<uint> fMaterialsIndices;
@@ -32,14 +34,14 @@ void model::Load(const std::string &inputFile, uint matIndex, vec3 translation,
 
     for (auto &m : materials)
     {
-        auto newMaterial = material::Material();
+        auto newMaterial = Material();
         if (!m.ambient_texname.empty())
         {
             std::string file = directory + m.ambient_texname;
             const char *path = file.c_str();
 
             newMaterial.textureIdx =
-                material::MaterialManager::GetInstance()->AddTexture(path);
+                MaterialManager::GetInstance()->AddTexture(path);
         }
 
         newMaterial.colorDiffuse =
@@ -86,7 +88,7 @@ void model::Load(const std::string &inputFile, uint matIndex, vec3 translation,
         }
 
         uint newMaterialIndex =
-            material::MaterialManager::GetInstance()->AddMaterial(newMaterial);
+            MaterialManager::GetInstance()->AddMaterial(newMaterial);
         fMaterialsIndices.push_back(newMaterialIndex);
     }
 
@@ -146,8 +148,8 @@ void model::Load(const std::string &inputFile, uint matIndex, vec3 translation,
                 tMaterialIndex = matIndex;
             }
 
-            const material::Material mat =
-                material::MaterialManager::GetInstance()->GetMaterial(
+            const Material mat =
+                MaterialManager::GetInstance()->GetMaterial(
                     tMaterialIndex);
             Triangle *triangle;
             if (mat.textureIdx > -1 && meshHasTextures)
@@ -217,7 +219,7 @@ void model::Load(const std::string &inputFile, uint matIndex, vec3 translation,
     }
 }
 
-void model::Load(const std::string &inputFile, uint matIndex,
+void prims::Load(const std::string &inputFile, uint matIndex,
                  glm::vec3 translation, float scale,
                  GpuTriangleList *objectList, glm::mat4 transform)
 {
@@ -243,7 +245,7 @@ void model::Load(const std::string &inputFile, uint matIndex,
 
     for (auto &m : materials)
     {
-        auto newMaterial = material::Material();
+        auto newMaterial = Material();
 
         if (!m.ambient_texname.empty())
         {
@@ -251,7 +253,7 @@ void model::Load(const std::string &inputFile, uint matIndex,
             const char *path = file.c_str();
 
             newMaterial.textureIdx =
-                material::MaterialManager::GetInstance()->AddTexture(path);
+                MaterialManager::GetInstance()->AddTexture(path);
         }
 
         newMaterial.colorDiffuse =
@@ -298,7 +300,7 @@ void model::Load(const std::string &inputFile, uint matIndex,
         }
 
         uint newMaterialIndex =
-            material::MaterialManager::GetInstance()->AddMaterial(newMaterial);
+            MaterialManager::GetInstance()->AddMaterial(newMaterial);
         fMaterialsIndices.push_back(newMaterialIndex);
     }
 
@@ -358,7 +360,7 @@ void model::Load(const std::string &inputFile, uint matIndex,
             }
 
             const auto mat =
-                material::MaterialManager::GetInstance()->GetMaterial(
+                MaterialManager::GetInstance()->GetMaterial(
                     tMaterialIndex);
             GpuTriangle triangle{};
             if (mat.textureIdx > -1 && meshHasTextures)

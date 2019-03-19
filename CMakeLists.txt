@@ -8,6 +8,7 @@ file(GLOB_RECURSE SOURCES
 
 set(CMAKE_CXX_STANDARD 17)
 add_executable(${PROJECT_NAME} ${SOURCES})
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/deps/Boxer")
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -22,6 +23,7 @@ if (NOT WIN32)
 endif ()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE OpenGL::GL)
+target_link_libraries(${PROJECT_NAME} PRIVATE Boxer)
 include_directories("${PROJECT_SOURCE_DIR}/lib/glm-0.9.9.3/inc" "${CMAKE_CURRENT_SOURCE_DIR}/src")
 if (WIN32)
     include_directories(

@@ -17,7 +17,7 @@ struct MBVHTraversal
     float tNear; // Minimum hit time for this node.
 };
 
-class MBVHTree : public WorldScene
+class MBVHTree : public prims::WorldScene
 {
   public:
     friend class MBVHNode;
@@ -26,28 +26,25 @@ class MBVHTree : public WorldScene
 
     MBVHTree(bvh::StaticBVHTree *orgTree);
 
-    MBVHTree(SceneObjectList *objectList, bvh::BVHType type = SAH_BINNING,
-             ctpl::ThreadPool *pool = nullptr);
-
     bvh::AABB m_Bounds = {glm::vec3(1e34f), glm::vec3(-1e34f)};
-    SceneObjectList *m_ObjectList = nullptr;
+    prims::SceneObjectList *m_ObjectList = nullptr;
     bvh::StaticBVHTree *m_OriginalTree;
     std::vector<bvh::MBVHNode> m_Tree;
     std::vector<unsigned int> m_PrimitiveIndices{};
     bool m_CanUseBVH = false;
     unsigned int m_FinalPtr = 0;
 
-    void Traverse(Ray &r) const;
+    void Traverse(core::Ray &r) const;
 
-    unsigned int TraverseDebug(Ray &r) const;
+    unsigned int TraverseDebug(core::Ray &r) const;
 
-    void TraverseWithStack(Ray &r) const;
+    void TraverseWithStack(core::Ray &r) const;
 
-    void TraceRay(Ray &r) const override;
+    void TraceRay(core::Ray &r) const override;
 
-    bool TraceShadowRay(Ray &r, float tMax) const override;
+    bool TraceShadowRay(core::Ray &r, float tMax) const override;
 
-    const std::vector<SceneObject *> &GetLights() const override;
+    const std::vector<prims::SceneObject *> &GetLights() const override;
 
     void ConstructBVH() override;
 
@@ -55,7 +52,7 @@ class MBVHTree : public WorldScene
 
     uint GetPrimitiveCount() override;
 
-    unsigned int TraceDebug(Ray &r) const override;
+    unsigned int TraceDebug(core::Ray &r) const override;
 
   private:
     std::mutex m_PoolPtrMutex{};

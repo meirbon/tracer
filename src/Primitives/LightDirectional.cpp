@@ -6,11 +6,14 @@
 
 using namespace glm;
 
+namespace prims
+{
+
 LightDirectional::LightDirectional(vec3 direction, unsigned int matIdx)
 {
-    this->Direction = normalize(direction);
-    this->materialIdx = matIdx;
-    this->centroid = -1e33f * direction;
+	this->Direction = normalize(direction);
+	this->materialIdx = matIdx;
+	this->centroid = -1e33f * direction;
 }
 
 // glm::vec3 LightDirectional::CalculateLight(
@@ -58,53 +61,42 @@ LightDirectional::LightDirectional(vec3 direction, unsigned int matIdx)
 //    return ret;
 //}
 
-void LightDirectional::Intersect(Ray &r) const
+void LightDirectional::Intersect(core::Ray &r) const
 {
 #if !PATH_TRACER
-    return;
+	return;
 #endif
 
-    if (dot(r.direction, Direction) > 0)
-    {
-        return;
-    }
+	if (dot(r.direction, Direction) > 0)
+	{
+		return;
+	}
 
-    r.t = 1e33f;
-    r.obj = this;
+	r.t = 1e33f;
+	r.obj = this;
 }
 
-bvh::AABB LightDirectional::GetBounds() const
+bvh::AABB LightDirectional::GetBounds() const { return bvh::AABB(vec3(0.f), vec3(0.f)); }
+
+vec3 LightDirectional::GetRandomPointOnSurface(const vec3 &direction, vec3 &lNormal, RandomGenerator &rng) const
 {
-    return bvh::AABB(vec3(0.f), vec3(0.f));
+	vec3 other;
+	if (direction.z == 0 && direction.y == 0)
+	{
+		other = {direction.y, direction.x, direction.z};
+	}
+	else
+	{
+		other = {direction.x, direction.z, direction.y};
+	}
+	const glm::vec3 right = normalize(cross(direction, other));
+	const glm::vec3 up = normalize(cross(direction, right));
+
+	lNormal = this->Direction;
+	return this->Direction * -1e33f + (rng.Rand(2.f) - 1.f) * 1e33f * up + (rng.Rand(2.f) - 1.f) * 1e33f * right;
 }
 
-vec3 LightDirectional::GetRandomPointOnSurface(const vec3 &direction,
-                                               vec3 &lNormal,
-                                               RandomGenerator &rng) const
-{
-    vec3 other;
-    if (direction.z == 0 && direction.y == 0)
-    {
-        other = {direction.y, direction.x, direction.z};
-    }
-    else
-    {
-        other = {direction.x, direction.z, direction.y};
-    }
-    const glm::vec3 right = normalize(cross(direction, other));
-    const glm::vec3 up = normalize(cross(direction, right));
+glm::vec3 LightDirectional::GetNormal(const glm::vec3 &hitPoint) const { return Direction; }
 
-    lNormal = this->Direction;
-    return this->Direction * -1e33f + (rng.Rand(2.f) - 1.f) * 1e33f * up +
-           (rng.Rand(2.f) - 1.f) * 1e33f * right;
-}
-
-glm::vec3 LightDirectional::GetNormal(const glm::vec3 &hitPoint) const
-{
-    return Direction;
-}
-
-glm::vec2 LightDirectional::GetTexCoords(const glm::vec3 &hitPoint) const
-{
-    return glm::vec2();
-}
+glm::vec2 LightDirectional::GetTexCoords(const glm::vec3 &hitPoint) const { return glm::vec2(); }
+} // namespace prims

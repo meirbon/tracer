@@ -20,7 +20,7 @@ bvh::BVHNode::BVHNode(int leftFirst, int count, AABB bounds)
     SetCount(-1);
 }
 
-bool bvh::BVHNode::Intersect(const Ray& r) const
+bool bvh::BVHNode::Intersect(const core::Ray& r) const
 {
     const float tx1 = (bounds.bmin[0] - r.origin.x) / r.direction.x;
     const float tx2 = (bounds.bmax[0] - r.origin.x) / r.direction.x;
@@ -43,7 +43,7 @@ bool bvh::BVHNode::Intersect(const Ray& r) const
     return tmax >= 0 && tmin < tmax;
 }
 
-bool bvh::BVHNode::IntersectSIMD(const Ray& r) const
+bool bvh::BVHNode::IntersectSIMD(const core::Ray& r) const
 {
     const __m128 dirInversed = _mm_div_ps(QuadOne, r.m_Direction4);
     const __m128 t1 = _mm_mul_ps(_mm_sub_ps(bounds.bmin4, r.m_Origin4), dirInversed);
@@ -63,7 +63,7 @@ bool bvh::BVHNode::IntersectSIMD(const Ray& r) const
     return tmax >= 0 && tmin < tmax;
 }
 
-bool bvh::BVHNode::Intersect(const Ray& r, float& tNear, float& tFar) const
+bool bvh::BVHNode::Intersect(const core::Ray& r, float& tNear, float& tFar) const
 {
     const float tx1 = (bounds.bmin[0] - r.origin.x) / r.direction.x;
     const float tx2 = (bounds.bmax[0] - r.origin.x) / r.direction.x;
@@ -86,7 +86,7 @@ bool bvh::BVHNode::Intersect(const Ray& r, float& tNear, float& tFar) const
     return tFar >= 0 && tNear < tFar;
 }
 
-bool bvh::BVHNode::IntersectSIMD(const Ray& r, float& tNear, float& tFar) const
+bool bvh::BVHNode::IntersectSIMD(const core::Ray& r, float& tNear, float& tFar) const
 {
     const __m128 dirInversed = _mm_div_ps(QuadOne, r.m_Direction4);
     const __m128 t1 = _mm_mul_ps(_mm_sub_ps(bounds.bmin4, r.m_Origin4), dirInversed);
@@ -106,7 +106,7 @@ bool bvh::BVHNode::IntersectSIMD(const Ray& r, float& tNear, float& tFar) const
     return tFar >= 0 && tNear < tFar;
 }
 
-unsigned int bvh::BVHNode::TraverseDebug(Ray& r, const bvh::StaticBVHTree* bvhTree) const
+unsigned int bvh::BVHNode::TraverseDebug(core::Ray& r, const bvh::StaticBVHTree* bvhTree) const
 {
     unsigned int depth = 1;
 
@@ -139,7 +139,7 @@ unsigned int bvh::BVHNode::TraverseDebug(Ray& r, const bvh::StaticBVHTree* bvhTr
     return depth;
 }
 
-unsigned int bvh::BVHNode::TraverseDebug(Ray& r, const std::vector<BVHNode>& bvhTree) const
+unsigned int bvh::BVHNode::TraverseDebug(core::Ray& r, const std::vector<BVHNode>& bvhTree) const
 {
     unsigned int depth = 1;
     if (!this->IsLeaf()) {
@@ -172,7 +172,7 @@ unsigned int bvh::BVHNode::TraverseDebug(Ray& r, const std::vector<BVHNode>& bvh
     return depth;
 }
 
-unsigned int bvh::BVHNode::TraverseDebug(Ray& r, const std::vector<bvh::GameObjectNode>& objectList, const std::vector<bvh::BVHNode>& bvhTree, const std::vector<unsigned int>& primIndices) const
+unsigned int bvh::BVHNode::TraverseDebug(core::Ray& r, const std::vector<bvh::GameObjectNode>& objectList, const std::vector<bvh::BVHNode>& bvhTree, const std::vector<unsigned int>& primIndices) const
 {
     unsigned int depth = 1;
     if (this->IsLeaf()) {
@@ -213,8 +213,8 @@ unsigned int bvh::BVHNode::TraverseDebug(Ray& r, const std::vector<bvh::GameObje
 }
 
 void bvh::BVHNode::Traverse(
-    Ray& r,
-    const std::vector<SceneObject*>& objectList,
+    core::Ray& r,
+    const std::vector<prims::SceneObject*>& objectList,
     const bvh::StaticBVHTree* bvhTree) const
 {
     if (this->IsLeaf()) {
@@ -251,8 +251,8 @@ void bvh::BVHNode::Traverse(
 }
 
 void bvh::BVHNode::Traverse(
-    Ray& r,
-    const std::vector<SceneObject*>& objectList,
+    core::Ray& r,
+    const std::vector<prims::SceneObject*>& objectList,
     const std::vector<bvh::BVHNode>& bvhTree,
     const std::vector<unsigned int>& primIndices) const
 {
@@ -290,7 +290,7 @@ void bvh::BVHNode::Traverse(
 }
 
 int bvh::BVHNode::Traverse(
-    Ray& r,
+    core::Ray& r,
     const std::vector<bvh::GameObjectNode>& objectList,
     const std::vector<bvh::BVHNode>& bvhTree,
     const std::vector<unsigned int>& primIndices) const
@@ -335,7 +335,7 @@ int bvh::BVHNode::Traverse(
 }
 
 int bvh::BVHNode::TraverseShadow(
-    Ray& r,
+    core::Ray& r,
     const std::vector<bvh::GameObjectNode>& objectList,
     const std::vector<bvh::BVHNode>& bvhTree,
     const std::vector<unsigned int>& primIndices) const

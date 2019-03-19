@@ -4,8 +4,8 @@
 #include <cstdio>
 #include <cstring>
 
-#include "Utils/Template.h"
-
+namespace gl
+{
 void CheckGL();
 
 GLuint CreateVBO(const GLfloat *data, const unsigned int size);
@@ -19,3 +19,4 @@ void CheckShader(GLuint shader);
 void CheckProgram(GLuint id);
 
 void DrawQuad();
+} // namespace gl
