@@ -1,9 +1,8 @@
 #pragma once
 
-#include <SDL2/SDL.h>
-
 #include "BVH/GameObject.h"
 #include "BVH/TopLevelBVH.h"
+#include <GLFW/glfw3.h>
 
 #include "Core/BVHRenderer.h"
 #include "Core/Camera.h"
@@ -37,7 +36,7 @@ enum RendererType
 class Application
 {
   public:
-	Application(utils::SDLWindow *window, RendererType type, int width, int height, const char *scene = nullptr,
+	Application(utils::Window *window, RendererType type, int width, int height, const char *scene = nullptr,
 				const char *skybox = nullptr);
 	~Application();
 
@@ -53,15 +52,27 @@ class Application
 	 */
 	void MouseScroll(bool x, bool y);
 
+	void MouseScroll(float x, float y);
+
 	void MouseUp(int button) { m_MouseKeyStatus[button] = false; }
 
 	void MouseDown(int button) { m_MouseKeyStatus[button] = true; }
 
 	void MouseMove(int x, int y);
 
-	void KeyUp(int key) noexcept { m_KeyStatus[key] = false; }
+	void MouseMove(float x, float y);
 
-	void KeyDown(int key) noexcept { m_KeyStatus[key] = true; }
+	void KeyUp(int key) noexcept
+	{
+		if (key >= 0)
+			m_KeyStatus[key] = false;
+	}
+
+	void KeyDown(int key) noexcept
+	{
+		if (key >= 0)
+			m_KeyStatus[key] = true;
+	}
 
 	void HandleKeys(float deltaTime) noexcept;
 
@@ -111,7 +122,7 @@ class Application
 	core::Surface *m_Skybox = nullptr;
 
 	int m_tIndex;
-	bool m_KeyStatus[256]{};
+	bool m_KeyStatus[512]{};
 	bool m_MouseKeyStatus[32]{};
 	bool m_MovementLocked = false, m_DynamicLocked = false;
 	int m_Width, m_Height;
@@ -127,5 +138,5 @@ class Application
 	bool m_BVHDebugMode = false;
 	core::BVHRenderer *m_BVHRenderer = nullptr;
 
-	utils::SDLWindow *m_Window;
+	utils::Window *m_Window;
 };

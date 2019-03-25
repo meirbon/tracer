@@ -7,7 +7,7 @@ namespace utils
 {
 class Window
 {
-  protected:
+  public:
 	Window(const char *title, int width, int height) : m_Title(title), m_Width(width), m_Height(height) {}
 	virtual ~Window() = default;
 

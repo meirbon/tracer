@@ -49,6 +49,13 @@ void Camera::ProcessMouse(int x, int y) noexcept
 	m_ViewDirection = getDirectionFromPitchAndYaw();
 }
 
+void Camera::ProcessMouse(float x, float y) noexcept
+{
+	RotateRight(x);
+	RotateUp(y);
+	m_ViewDirection = getDirectionFromPitchAndYaw();
+}
+
 vec3 Camera::GetPosition() const noexcept { return m_Origin; }
 
 void Camera::MoveUp(float movementSpeed) noexcept { m_Origin += m_Up * movementSpeed; }

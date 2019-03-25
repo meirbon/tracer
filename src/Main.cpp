@@ -1,13 +1,15 @@
 ﻿#include "Application.h"
 
 #include "Shared.h"
-#include "Utils/SDLWindow.h"
+#include "Utils/GLFWWindow.h"
 #include "Utils/Timer.h"
 
 constexpr int SCRWIDTH = 1024;
 constexpr int SCRHEIGHT = 768;
 
 using namespace utils;
+
+#define USE_SDL 0
 
 int main(int argc, char *argv[])
 {
@@ -32,10 +34,15 @@ int main(int argc, char *argv[])
 
 	int exitApp = 0;
 	const char *f = file.c_str();
+#if USE_SDL
 	auto window = utils::SDLWindow("Tracer", SCRWIDTH, SCRHEIGHT, oFullScreen);
+#else
+	auto window = utils::GLFWWindow("Tracer", SCRWIDTH, SCRHEIGHT, oFullScreen);
+#endif
 	auto app = new Application(&window, rendererType, SCRWIDTH, SCRHEIGHT, file.empty() ? nullptr : f);
 
 	Timer t, drawTimer;
+#if USE_SDL
 	window.SetEventCallback([&exitApp, &app](SDL_Event event) {
 		switch (event.type)
 		{
@@ -66,6 +73,48 @@ int main(int argc, char *argv[])
 			break;
 		}
 	});
+#else
+	window.SetEventCallback([&exitApp, &app](utils::Event event) {
+		switch (event.type)
+		{
+		case CLOSED:
+			exitApp = 1;
+			break;
+		case KEY:
+			if (event.key == GLFW_KEY_ESCAPE)
+			{
+				exitApp = 1;
+				break;
+			}
+
+			if (event.key >= 0 && event.key <= 7)
+			{
+				if (event.state == KEY_PRESSED)
+					app->MouseDown(event.key);
+				else
+					app->MouseUp(event.key);
+			}
+			else
+			{
+				if (event.state == KEY_PRESSED)
+					app->KeyDown(event.key);
+				else
+					app->KeyUp(event.key);
+			}
+			break;
+		case MOUSE:
+			if (event.state == KEY_PRESSED)
+				app->MouseDown(event.key);
+			else if (event.state == KEY_RELEASED)
+				app->MouseUp(event.key);
+			else if (event.state == MOUSE_MOVE)
+				app->MouseMove(event.x, event.y);
+			else if (event.state == MOUSE_SCROLL)
+				app->MouseScroll(event.x, event.y);
+			break;
+		}
+	});
+#endif
 
 	while (!exitApp)
 	{

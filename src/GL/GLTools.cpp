@@ -92,6 +92,7 @@ void DrawQuad()
 		GLuint vertexBuffer = CreateVBO(verts, sizeof(verts));
 		GLuint UVBuffer = CreateVBO(uvdata, sizeof(uvdata));
 		glGenVertexArrays(1, &vao);
+
 		glBindVertexArray(vao);
 		BindVBO(0, 3, vertexBuffer);
 		BindVBO(1, 2, UVBuffer);

@@ -6,7 +6,6 @@
 
 namespace core
 {
-
 #define ROTATION_SPEED 0.002f
 #define MOVEMENT_SPEED 0.003f
 
@@ -26,6 +25,8 @@ class Camera
 	Ray GenerateRandomRay(float x, float y, RandomGenerator &rng) const;
 
 	void ProcessMouse(int x, int y) noexcept;
+
+	void ProcessMouse(float x, float y) noexcept;
 
 	glm::vec3 GetPosition() const noexcept;
 

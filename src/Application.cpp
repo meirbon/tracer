@@ -15,12 +15,15 @@ bvh::GameObject *motherGameObject;
 bvh::GameObject *cubeMother1, *cubeMother2, *cubeMother3, *cubeMother4;
 #endif
 
-Application::Application(utils::SDLWindow *window, RendererType type, int width, int height, const char *scene,
+Application::Application(utils::Window *window, RendererType type, int width, int height, const char *scene,
 						 const char *skybox)
 	: m_Type(type), m_tIndex(0), m_Width(width), m_Height(height), m_Window(window)
 {
 	using namespace bvh;
 	using namespace core;
+
+	for (auto &key : m_KeyStatus)
+		key = 0;
 
 	const auto cores = ctpl::nr_of_cores;
 	m_TPool = new ctpl::ThreadPool(cores);
@@ -307,70 +310,70 @@ void Application::Tick(float deltaTime) noexcept
 
 void Application::HandleKeys(float deltaTime) noexcept
 {
-	const float movementSpeed = deltaTime * MOVEMENT_SPEED * (m_KeyStatus[SDL_SCANCODE_LSHIFT] ? 4.f : 1.f);
-	const float rotationSpeed = deltaTime * 0.5f * (m_KeyStatus[SDL_SCANCODE_LSHIFT] ? 2.f : 1.f);
+	const float movementSpeed = deltaTime * MOVEMENT_SPEED * (m_KeyStatus[GLFW_KEY_LEFT_SHIFT] ? 4.f : 1.f);
+	const float rotationSpeed = deltaTime * 0.5f * (m_KeyStatus[GLFW_KEY_LEFT_SHIFT] ? 2.f : 1.f);
 	bool resetSamples = false;
 
 	if (!m_MovementLocked)
 	{
-		if (m_KeyStatus[SDL_SCANCODE_W])
+		if (m_KeyStatus[GLFW_KEY_W])
 		{
 			m_Camera.MoveForward(movementSpeed);
 			resetSamples = true;
 		}
-		if (m_KeyStatus[SDL_SCANCODE_S])
+		if (m_KeyStatus[GLFW_KEY_S])
 		{
 			m_Camera.MoveBackward(movementSpeed);
 			resetSamples = true;
 		}
-		if (m_KeyStatus[SDL_SCANCODE_A])
+		if (m_KeyStatus[GLFW_KEY_A])
 		{
 			m_Camera.MoveLeft(movementSpeed);
 			resetSamples = true;
 		}
-		if (m_KeyStatus[SDL_SCANCODE_D])
+		if (m_KeyStatus[GLFW_KEY_D])
 		{
 			m_Camera.MoveRight(movementSpeed);
 			resetSamples = true;
 		}
 
-		if (m_KeyStatus[SDL_SCANCODE_SPACE])
+		if (m_KeyStatus[GLFW_KEY_SPACE])
 		{
 			m_Camera.MoveUp(movementSpeed);
 			resetSamples = true;
 		}
-		if (m_KeyStatus[SDL_SCANCODE_LCTRL])
+		if (m_KeyStatus[GLFW_KEY_LEFT_CONTROL])
 		{
 			m_Camera.MoveDown(movementSpeed);
 			resetSamples = true;
 		}
 
-		if (m_KeyStatus[SDL_SCANCODE_UP])
+		if (m_KeyStatus[GLFW_KEY_UP])
 		{
 			m_Camera.RotateDown(rotationSpeed);
 			resetSamples = true;
 		}
-		if (m_KeyStatus[SDL_SCANCODE_DOWN])
+		if (m_KeyStatus[GLFW_KEY_DOWN])
 		{
 			m_Camera.RotateUp(rotationSpeed);
 			resetSamples = true;
 		}
-		if (m_KeyStatus[SDL_SCANCODE_RIGHT])
+		if (m_KeyStatus[GLFW_KEY_RIGHT])
 		{
 			m_Camera.RotateRight(rotationSpeed);
 			resetSamples = true;
 		}
-		if (m_KeyStatus[SDL_SCANCODE_LEFT])
+		if (m_KeyStatus[GLFW_KEY_LEFT])
 		{
 			m_Camera.RotateLeft(rotationSpeed);
 			resetSamples = true;
 		}
-		if (m_KeyStatus[SDL_SCANCODE_R])
+		if (m_KeyStatus[GLFW_KEY_R])
 		{
 			resetSamples = true;
 		}
 
-		if (m_KeyStatus[SDL_SCANCODE_0])
+		if (m_KeyStatus[GLFW_KEY_0])
 		{
 			if (m_MovementTimer.elapsed() > 500.0f)
 			{
@@ -379,54 +382,54 @@ void Application::HandleKeys(float deltaTime) noexcept
 				m_MovementTimer.reset();
 			}
 		}
-		else if (m_KeyStatus[SDL_SCANCODE_1])
+		else if (m_KeyStatus[GLFW_KEY_1])
 		{
 			m_Renderer->SetMode(core::Mode::Reference);
 			resetSamples = true;
 		}
-		else if (m_KeyStatus[SDL_SCANCODE_2])
+		else if (m_KeyStatus[GLFW_KEY_2])
 		{
 			m_Renderer->SetMode(core::Mode::NEE);
 			resetSamples = true;
 		}
-		else if (m_KeyStatus[SDL_SCANCODE_3])
+		else if (m_KeyStatus[GLFW_KEY_3])
 		{
 			m_Renderer->SetMode(core::Mode::IS);
 			resetSamples = true;
 		}
-		else if (m_KeyStatus[SDL_SCANCODE_4])
+		else if (m_KeyStatus[GLFW_KEY_4])
 		{
 			m_Renderer->SetMode(core::Mode::NEE_IS);
 			resetSamples = true;
 		}
-		else if (m_KeyStatus[SDL_SCANCODE_5])
+		else if (m_KeyStatus[GLFW_KEY_5])
 		{
 			m_Renderer->SetMode(core::Mode::NEE_MIS);
 			resetSamples = true;
 		}
-		else if (m_KeyStatus[SDL_SCANCODE_6])
+		else if (m_KeyStatus[GLFW_KEY_6])
 		{
 			m_Renderer->SetMode(core::Mode::ReferenceMicrofacet);
 			resetSamples = true;
 		}
-		else if (m_KeyStatus[SDL_SCANCODE_7])
+		else if (m_KeyStatus[GLFW_KEY_7])
 		{
 			m_Renderer->SetMode(core::Mode::NEEMicrofacet);
 			resetSamples = true;
 		}
 	}
 
-	if (m_KeyStatus[SDL_SCANCODE_M])
+	if (m_KeyStatus[GLFW_KEY_M])
 	{
 		SwitchDynamicLocked();
 	}
 
-	if (m_KeyStatus[SDL_SCANCODE_L])
+	if (m_KeyStatus[GLFW_KEY_L])
 	{
 		SwitchMovementLocked();
 	}
 
-	if (m_KeyStatus[SDL_SCANCODE_B])
+	if (m_KeyStatus[GLFW_KEY_B])
 	{
 		SwitchBVHMode();
 	}
@@ -446,9 +449,27 @@ void Application::MouseScroll(bool x, bool y)
 	}
 }
 
+void Application::MouseScroll(float x, float y)
+{
+	if (!m_MovementLocked)
+	{
+		m_Camera.ChangeFOV(m_Camera.GetFOV() + y);
+		m_Renderer->Reset();
+	}
+}
+
 void Application::MouseMove(int x, int y)
 {
-	if (!m_MovementLocked && m_MouseKeyStatus[SDL_BUTTON_LEFT])
+	if (!m_MovementLocked && m_MouseKeyStatus[GLFW_MOUSE_BUTTON_LEFT])
+	{
+		m_Camera.ProcessMouse(x, y);
+		m_Renderer->Reset();
+	}
+}
+
+void Application::MouseMove(float x, float y)
+{
+	if (!m_MovementLocked && m_MouseKeyStatus[GLFW_MOUSE_BUTTON_LEFT])
 	{
 		m_Camera.ProcessMouse(x, y);
 		m_Renderer->Reset();
@@ -510,16 +531,16 @@ void Application::Draw(float deltaTime)
 
 void Application::Resize(int newWidth, int newHeight)
 {
-	 glFinish();
-	 m_Camera.SetWidthHeight(newWidth, newHeight);
-	 m_Width = newWidth;
-	 m_Height = newHeight;
+	glFinish();
+	m_Camera.SetWidthHeight(newWidth, newHeight);
+	m_Width = newWidth;
+	m_Height = newHeight;
 
 	delete m_Screen;
 	delete m_OutputTexture[0];
 	delete m_OutputTexture[1];
 
-	 if (m_Type == CPU || m_Type == CPU_RAYTRACER)
+	if (m_Type == CPU || m_Type == CPU_RAYTRACER)
 	{
 		m_Screen = new core::Surface(m_Width, m_Height);
 		m_OutputTexture[0] = new gl::Texture(m_Width, m_Height, gl::Texture::SURFACE);
@@ -535,7 +556,7 @@ void Application::Resize(int newWidth, int newHeight)
 			m_Renderer->Resize(m_OutputTexture[m_tIndex]);
 		}
 	}
-	 else
+	else
 	{
 		m_OutputTexture[0] = new gl::Texture(m_Width, m_Height, gl::Texture::FLOAT);
 		m_OutputTexture[1] = new gl::Texture(m_Width, m_Height, gl::Texture::FLOAT);
