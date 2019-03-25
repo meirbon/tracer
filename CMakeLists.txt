@@ -21,7 +21,7 @@ find_package(OpenGL REQUIRED)
 if (NOT WIN32)
     find_package(OpenCL REQUIRED)
     find_package(GLEW REQUIRED)
-	find_package(glfw3 3.2 REQUIRED)
+    find_package(glfw3 3.2 REQUIRED)
     find_package(SDL2 REQUIRED)
     find_package(FreeImage REQUIRED)
     find_package(Threads)
@@ -30,7 +30,12 @@ endif ()
 target_link_libraries(${PROJECT_NAME} PRIVATE OpenGL::GL)
 target_link_libraries(${PROJECT_NAME} PRIVATE glfw)
 target_link_libraries(${PROJECT_NAME} PRIVATE Boxer)
-include_directories("${PROJECT_SOURCE_DIR}/lib/glm-0.9.9.3/inc" "${CMAKE_CURRENT_SOURCE_DIR}/src")
+include_directories(
+    "${PROJECT_SOURCE_DIR}/lib/glm-0.9.9.3/inc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/ImGui"
+)
+
 if (WIN32)
     include_directories(
         "${PROJECT_SOURCE_DIR}/lib/FreeImage/include"

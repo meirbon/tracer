@@ -1,11 +1,13 @@
 #include "Utils/GLFWWindow.h"
 
+#include "Utils/Timer.h"
+
 namespace utils
 {
 GLFWWindow *instance;
 
 GLFWWindow::GLFWWindow(const char *title, int width, int height, bool fullscreen, bool lockMouse)
-	: Window(title, width, height)
+	: Window(title, width, height), m_IsFullscreen(fullscreen)
 {
 	instance = this;
 	if (!glfwInit())
@@ -14,8 +16,8 @@ GLFWWindow::GLFWWindow(const char *title, int width, int height, bool fullscreen
 		exit(EXIT_FAILURE);
 	}
 
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #ifdef __APPLE__
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
@@ -64,10 +66,25 @@ GLFWWindow::GLFWWindow(const char *title, int width, int height, bool fullscreen
 		std::cout << "Could not init GLEW: " << glewGetErrorString(error) << std::endl;
 		exit(EXIT_FAILURE);
 	}
+
+	IMGUI_CHECKVERSION();
+	m_ImGuiContext = ImGui::CreateContext();
+	ImGui::StyleColorsDark();
+
+	ImGui_ImplGlfw_InitForOpenGL(m_Window, true);
+	ImGui_ImplOpenGL3_Init("#version 150");
+	
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
 }
 
 GLFWWindow::~GLFWWindow()
 {
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext(m_ImGuiContext);
+
 	glfwDestroyWindow(m_Window);
 	glfwTerminate();
 }
@@ -93,13 +110,46 @@ void GLFWWindow::Present()
 	if (error != GL_NO_ERROR)
 		std::cout << "OpenGL Error: " << error << std::endl;
 #endif
+	ImGui::Render();
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 	glfwSwapBuffers(m_Window);
+
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
 }
 
 void GLFWWindow::SetEventCallback(std::function<void(Event event)> callback) { m_OnEventCallback = callback; }
 
 void GLFWWindow::SetResizeCallback(std::function<void(int, int)> callback) { m_OnResizeCallback = callback; }
+
+void GLFWWindow::SwitchFullscreen()
+{
+	static Timer t{};
+	if (t.elapsed() < 1000.0f)
+		return;
+
+	t.reset();
+	m_IsFullscreen = !m_IsFullscreen;
+
+	if (m_IsFullscreen)
+	{
+		glfwGetWindowPos(m_Window, &m_WindowPos[0], &m_WindowPos[1]);
+		glfwGetWindowSize(m_Window, &m_Width, &m_Height);
+
+		m_Monitor = glfwGetPrimaryMonitor();
+		const GLFWvidmode *mode = glfwGetVideoMode(m_Monitor);
+
+		glfwSetWindowMonitor(m_Window, m_Monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+		glViewport(0, 0, mode->width, mode->height);
+	}
+	else
+	{
+		glfwSetWindowMonitor(m_Window, nullptr, m_WindowPos[0], m_WindowPos[1], m_Width, m_Height, 0);
+		glViewport(0, 0, m_Width, m_Height);
+	}
+}
 
 void GLFWWindow::FramebufferSizeCallback(GLFWwindow *window, int width, int height)
 {

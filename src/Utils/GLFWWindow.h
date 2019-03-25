@@ -4,6 +4,9 @@
 #include <GLFW/glfw3.h>
 #include <functional>
 
+#include "ImGuiGLFW.h"
+#include "ImGuiOpenGL3.h"
+
 namespace utils
 {
 enum EventType
@@ -43,6 +46,8 @@ class GLFWWindow : public Window
 	void SetEventCallback(std::function<void(Event event)> callback);
 	void SetResizeCallback(std::function<void(int, int)> callback);
 
+	void SwitchFullscreen() override;
+
 	static void FramebufferSizeCallback(GLFWwindow *window, int width, int height);
 	static void InputCallback(GLFWwindow *window, int key, int scancode, int action, int mods);
 	static void ErrorCallback(int code, const char *error);
@@ -55,7 +60,12 @@ class GLFWWindow : public Window
 	std::function<void(int, int)> m_OnResizeCallback = [](int, int) {};
 
 	float m_LastX, m_LastY;
+	int m_WindowPos[2];
+	int m_WindowSize[2];
 	bool m_FirstMouse = true;
+	bool m_IsFullscreen = false;
+
+	ImGuiContext *m_ImGuiContext = nullptr;
 
   private:
 	GLFWwindow *m_Window;

@@ -20,6 +20,8 @@ class SDLWindow : public Window
 	void Clear(const glm::vec4 &color) override;
 	void Present() override;
 
+	void SwitchFullscreen() override;
+
 	void SetEventCallback(std::function<void(SDL_Event)> callback);
 	void SetResizeCallback(std::function<void(int, int)> callback);
 

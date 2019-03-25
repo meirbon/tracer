@@ -1,7 +1,8 @@
 #include "Application.h"
 #include "Materials/MaterialManager.h"
+#include "imgui.h"
 
-#define FPS_FRAMES 20
+#define FPS_FRAMES 100
 #define TEAPOT 0
 #define CUBES 0
 
@@ -314,6 +315,9 @@ void Application::HandleKeys(float deltaTime) noexcept
 	const float rotationSpeed = deltaTime * 0.5f * (m_KeyStatus[GLFW_KEY_LEFT_SHIFT] ? 2.f : 1.f);
 	bool resetSamples = false;
 
+	if (m_KeyStatus[GLFW_KEY_LEFT_ALT] && m_KeyStatus[GLFW_KEY_ENTER])
+		m_Window->SwitchFullscreen();
+
 	if (!m_MovementLocked)
 	{
 		if (m_KeyStatus[GLFW_KEY_W])
@@ -486,32 +490,34 @@ void Application::Draw(float deltaTime)
 	for (float &fp : frametimes)
 		avgFrametime += fp;
 
+	ImGui::Begin("Information");
+	if (ImGui::Button("Reset"))
+		m_Renderer->Reset();
+
 	if (m_BVHDebugMode && m_BVHRenderer != nullptr)
 	{
+		ImGui::Text("Renderer: %s, Mode: BVH", (m_Type == CPU || m_Type == CPU_RAYTRACER) ? "CPU" : "GPU");
 		m_BVHRenderer->Render(m_Screen);
-
-		int BVH = m_Type == CPU ? m_Scene->GetActiveDynamicTreeIndex() : 0;
-
-		for (float fp : frametimes)
-		{
-			avgFrametime += fp;
-		}
-
-		avgFrametime = (1000.f / (avgFrametime / FPS_FRAMES));
-		std::sprintf(fpsText, "FPS: %.2f, BVH: %i", avgFrametime, BVH);
 	}
 	else
 	{
+		ImGui::Text("Renderer: %s, Mode: %s, Samples: %i", (m_Type == CPU || m_Type == CPU_RAYTRACER) ? "CPU" : "GPU",
+					m_Renderer->GetModeString(), m_Renderer->GetSamples());
 		m_Renderer->Render(m_Screen);
-
-		int BVH = m_Type == CPU ? m_Scene->GetActiveDynamicTreeIndex() : 0;
-
-		avgFrametime = (1000.f / (avgFrametime / FPS_FRAMES));
-		std::sprintf(fpsText, "FPS: %.2f, Mode: %s, BVH: %i, Samples: %i", avgFrametime, m_Renderer->GetModeString(),
-					 BVH, m_Renderer->GetSamples());
 	}
 
-	m_Window->SetTitle(fpsText);
+	if (m_Type == CPU)
+		ImGui::Text("BVH Idx: %i", m_Scene->GetActiveDynamicTreeIndex());
+
+	for (float fp : frametimes)
+		avgFrametime += fp;
+	avgFrametime = (1000.f / (avgFrametime / FPS_FRAMES));
+
+	ImGui::Text("FPS: %f", avgFrametime);
+
+	ImGui::PlotHistogram("", &frametimes[0], FPS_FRAMES, 0, "Frametimes", 0.0f, 50.0f, ImVec2(300, 100));
+
+	ImGui::End();
 
 	if (m_Type == CPU || m_Type == CPU_RAYTRACER)
 		m_OutputTexture[m_tIndex]->flushData();

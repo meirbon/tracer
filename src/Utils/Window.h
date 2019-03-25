@@ -19,6 +19,7 @@ class Window
 	virtual void PollEvents() = 0;
 	virtual void Clear(const glm::vec4 &color) = 0;
 	virtual void Present() = 0;
+	virtual void SwitchFullscreen() = 0;
 
   protected:
 	const char *m_Title;

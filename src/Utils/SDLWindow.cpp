@@ -90,3 +90,5 @@ void utils::SDLWindow::PollEvents()
 void utils::SDLWindow::Clear(const glm::vec4 &color) { glClearColor(color.x, color.y, color.z, color.w); }
 
 void utils::SDLWindow::Present() { SDL_GL_SwapWindow(m_Window); }
+
+void utils::SDLWindow::SwitchFullscreen() {}
