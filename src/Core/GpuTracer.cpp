@@ -49,6 +49,7 @@ GpuTracer::GpuTracer(prims::GpuTriangleList *objectList, gl::Texture *targetText
 					 core::Camera *camera, core::Surface *skyBox, ctpl::ThreadPool *pool)
 	: m_Camera(camera)
 {
+	modes = {"NEE MIS", "Reference", "Reference MF"};
 	Kernel::InitCL();
 	m_BVHTree = new bvh::StaticBVHTree(objectList, bvh::BVHType::SAH_BINNING, pool);
 	m_BVHTree->ConstructBVH();
@@ -286,8 +287,9 @@ void GpuTracer::SetupObjects()
 	MBVHNodeBuffer = new Buffer((m_MBVHTree->m_FinalPtr + 1) * sizeof(bvh::MBVHNode), m_MBVHTree->m_Tree.data());
 	MBVHNodeBuffer->CopyToDevice();
 
-	triangleBuffer = new Buffer(static_cast<unsigned int>(m_ObjectList->GetTriangles().size()) * sizeof(prims::GpuTriangle),
-								(void *)m_ObjectList->GetTriangles().data());
+	triangleBuffer =
+		new Buffer(static_cast<unsigned int>(m_ObjectList->GetTriangles().size()) * sizeof(prims::GpuTriangle),
+				   (void *)m_ObjectList->GetTriangles().data());
 	triangleBuffer->CopyToDevice();
 }
 

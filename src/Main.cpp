@@ -2,6 +2,7 @@
 
 #include "Shared.h"
 #include "Utils/GLFWWindow.h"
+#include "Utils/SDLWindow.h"
 #include "Utils/Timer.h"
 
 constexpr int SCRWIDTH = 1024;

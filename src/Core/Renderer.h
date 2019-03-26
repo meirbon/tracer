@@ -60,7 +60,11 @@ class Renderer
 
 	virtual void SetMode(Mode mode) { m_Mode = mode; }
 
+	virtual void SetMode(std::string){};
+	virtual const std::vector<const char*> &GetModes() { return modes; };
+
   protected:
 	Mode m_Mode = Reference;
+	std::vector<const char*> modes;
 };
 } // namespace core

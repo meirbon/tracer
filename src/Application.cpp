@@ -2,13 +2,17 @@
 #include "Materials/MaterialManager.h"
 #include "imgui.h"
 
-#define FPS_FRAMES 100
+#include <algorithm>
+#include <deque>
+
+#define FPS_FRAMES 50
 #define TEAPOT 0
 #define CUBES 0
 
-static float frametimes[FPS_FRAMES]{};
-static int frametimeIndex = 0;
-static char msText[32], fpsText[64], infoText[32], sampleText[128];
+static std::deque<float> frametimes = {};
+static int lastMode = 0;
+static int renderMode = 0;
+static float maxFrametime = 10.0f;
 auto *gameObjects = new std::vector<bvh::GameObject *>();
 
 bvh::GameObject *motherGameObject;
@@ -251,11 +255,6 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 		break;
 	}
 	}
-
-	for (auto &fp : frametimes)
-	{
-		fp = 1.0f;
-	}
 }
 
 Application::~Application()
@@ -386,41 +385,6 @@ void Application::HandleKeys(float deltaTime) noexcept
 				m_MovementTimer.reset();
 			}
 		}
-		else if (m_KeyStatus[GLFW_KEY_1])
-		{
-			m_Renderer->SetMode(core::Mode::Reference);
-			resetSamples = true;
-		}
-		else if (m_KeyStatus[GLFW_KEY_2])
-		{
-			m_Renderer->SetMode(core::Mode::NEE);
-			resetSamples = true;
-		}
-		else if (m_KeyStatus[GLFW_KEY_3])
-		{
-			m_Renderer->SetMode(core::Mode::IS);
-			resetSamples = true;
-		}
-		else if (m_KeyStatus[GLFW_KEY_4])
-		{
-			m_Renderer->SetMode(core::Mode::NEE_IS);
-			resetSamples = true;
-		}
-		else if (m_KeyStatus[GLFW_KEY_5])
-		{
-			m_Renderer->SetMode(core::Mode::NEE_MIS);
-			resetSamples = true;
-		}
-		else if (m_KeyStatus[GLFW_KEY_6])
-		{
-			m_Renderer->SetMode(core::Mode::ReferenceMicrofacet);
-			resetSamples = true;
-		}
-		else if (m_KeyStatus[GLFW_KEY_7])
-		{
-			m_Renderer->SetMode(core::Mode::NEEMicrofacet);
-			resetSamples = true;
-		}
 	}
 
 	if (m_KeyStatus[GLFW_KEY_M])
@@ -484,11 +448,20 @@ void Application::Draw(float deltaTime)
 {
 	HandleKeys(deltaTime);
 
-	frametimes[frametimeIndex] = deltaTime;
-	frametimeIndex = (frametimeIndex + 1) % FPS_FRAMES;
-	float avgFrametime = 0;
-	for (float &fp : frametimes)
+	if (frametimes.size() >= FPS_FRAMES)
+		frametimes.pop_front();
+
+	maxFrametime = std::max(maxFrametime, deltaTime);
+	frametimes.push_back(deltaTime);
+	float avgFrametime = 0.0f;
+	std::vector<float> ft(frametimes.size());
+	int i = 0;
+	for (float fp : frametimes)
+	{
+		ft[i] = fp;
 		avgFrametime += fp;
+		i++;
+	}
 
 	ImGui::Begin("Information");
 	if (ImGui::Button("Reset"))
@@ -514,9 +487,13 @@ void Application::Draw(float deltaTime)
 	avgFrametime = (1000.f / (avgFrametime / FPS_FRAMES));
 
 	ImGui::Text("FPS: %f", avgFrametime);
-
-	ImGui::PlotHistogram("", &frametimes[0], FPS_FRAMES, 0, "Frametimes", 0.0f, 50.0f, ImVec2(300, 100));
-
+	ImGui::PlotHistogram("", ft.data(), frametimes.size(), 0, "Frametimes", 0.0f, maxFrametime, ImVec2(300, 100));
+	//	bool (*items_getter)(void* data, int idx, const char** out_text)
+	const auto modes = m_Renderer->GetModes();
+	lastMode = renderMode;
+	ImGui::ListBox("Mode", &renderMode, modes.data(), modes.size());
+	if (lastMode != renderMode)
+		m_Renderer->SetMode(modes[renderMode]), m_Renderer->Reset();
 	ImGui::End();
 
 	if (m_Type == CPU || m_Type == CPU_RAYTRACER)
@@ -572,8 +549,7 @@ void Application::Resize(int newWidth, int newHeight)
 		if (m_Renderer)
 		{
 			((core::GpuTracer *)m_Renderer)->Resize(m_OutputTexture[0]);
-			((core::GpuTracer *)m_Renderer)->outputTexture[0] = m_OutputTexture[0];
-			((core::GpuTracer *)m_Renderer)->outputTexture[1] = m_OutputTexture[1];
+			((core::GpuTracer *)m_Renderer)->SetOutput(m_OutputTexture[0], m_OutputTexture[1]);
 		}
 	}
 }

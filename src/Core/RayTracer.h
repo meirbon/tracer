@@ -23,15 +23,16 @@ class RayTracer : public Renderer
 	glm::vec3 Shade(const Ray &r, uint &depth, float refractionIndex, RandomGenerator &rng);
 	glm::vec3 GetDiffuseSpecularColor(const Ray &r, const Material &mat, const glm::vec3 &hitPoint,
 									  RandomGenerator &rng) const;
-	glm::vec3 GetreflectionRefractionColor(const Ray &r, uint &depth, float refractionIndex,
-										   const Material &mat, const glm::vec3 &hitPoint,
-										   RandomGenerator &rng);
+	glm::vec3 GetreflectionRefractionColor(const Ray &r, uint &depth, float refractionIndex, const Material &mat,
+										   const glm::vec3 &hitPoint, RandomGenerator &rng);
 
 	inline void SwitchSkybox() override {}
 
 	void Resize(gl::Texture *newOutput) override;
 
 	inline void Reset() override { m_Samples = 0; }
+
+	inline void SetMode(std::string) override{};
 
   private:
 	glm::vec3 backGroundColor, ambientColor;

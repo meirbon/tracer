@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include <glm/glm.hpp>
+
 #include "BVH/MBVHTree.h"
 #include "BVH/StaticBVHTree.h"
 #include "CL/Buffer.h"
@@ -10,16 +12,26 @@
 #include "Core/PathTracer.h"
 #include "GL/Texture.h"
 #include "Primitives/GpuTriangleList.h"
+#include "Utils/Memory.h"
 
 using namespace cl;
 
-class Application;
+namespace prims
+{
+class SceneObjectList;
+}
 
 namespace core
 {
 struct TextureInfo
 {
-	int width, height, offset, dummy;
+	union {
+		glm::vec<4, int> data;
+		struct
+		{
+			int width, height, offset, dummy;
+		};
+	};
 	TextureInfo(int width, int height, int offset)
 	{
 		this->width = width;
@@ -28,18 +40,13 @@ struct TextureInfo
 	}
 };
 
-class SceneObjectList;
-class ComputeBuffer;
-
 class GpuTracer : public Renderer
 {
   public:
-	friend class Application;
-
 	GpuTracer() = default;
 	GpuTracer(prims::GpuTriangleList *objectList, gl::Texture *targetTexture1, gl::Texture *targetTexture2,
 			  Camera *camera, Surface *skyBox = nullptr, ctpl::ThreadPool *pool = nullptr);
-	~GpuTracer();
+	~GpuTracer() override;
 
 	void Render(Surface *output) override;
 
@@ -104,6 +111,22 @@ class GpuTracer : public Renderer
 
 	inline int GetSamples() const override { return m_Samples; }
 
+	inline void SetOutput(gl::Texture *outputTexture1, gl::Texture *outputTexture2)
+	{
+		this->outputTexture[0] = outputTexture1;
+		this->outputTexture[1] = outputTexture2;
+	}
+
+	inline void SetMode(std::string mode) override
+	{
+		if (mode == "NEE MIS")
+			SetMode(NEE_MIS);
+		else if (mode == "Reference")
+			SetMode(Reference);
+		else if (mode == "Reference MF")
+			SetMode(ReferenceMicrofacet);
+	};
+
   private:
 	Camera *m_Camera = nullptr;
 	prims::GpuTriangleList *m_ObjectList = nullptr;
@@ -131,8 +154,8 @@ class GpuTracer : public Renderer
 
 	cl::Buffer *lightIndices = nullptr;
 	cl::Buffer *lightLotteryTickets = nullptr;
-	int lightCount;
-	float lightArea;
+	int lightCount{};
+	float lightArea{};
 
 	cl::Kernel *generateRayKernel = nullptr;
 	cl::Kernel *intersectRaysKernelRef = nullptr;
@@ -147,9 +170,9 @@ class GpuTracer : public Renderer
 
 	int tIndex = 0;
 	int m_Samples = 0;
-	int m_Width, m_Height;
+	int m_Width{}, m_Height{};
 
-	bool m_SkyboxEnabled;
+	bool m_SkyboxEnabled{};
 	bool m_HasSkybox = false;
-};
+}; // namespace core
 } // namespace core

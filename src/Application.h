@@ -15,9 +15,9 @@
 #include "Materials/MaterialManager.h"
 
 #include "Utils/Messages.h"
-#include "Utils/SDLWindow.h"
 #include "Utils/Timer.h"
 #include "Utils/ctpl.h"
+#include "Utils/Window.h"
 
 #include "Primitives/Model.h"
 

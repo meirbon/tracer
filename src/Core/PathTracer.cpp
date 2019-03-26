@@ -21,6 +21,7 @@ PathTracer::PathTracer(WorldScene *scene, int width, int height, Camera *camera,
 	: m_Scene(scene), m_Width(width), m_Height(height), m_SkyBox(skyBox), m_Camera(camera),
 	  m_SkyboxEnabled(skyBox != nullptr)
 {
+	modes = {"NEE", "IS", "NEE_IS", "NEE_MIS", "Reference MF", "Reference"};
 	m_Pixels = new glm::vec3[m_Width * m_Height];
 	m_Energy = new float[m_Width * m_Height];
 

@@ -78,6 +78,22 @@ class PathTracer : public Renderer
 
 	void Resize(gl::Texture *newOutput) override;
 
+	void SetMode(std::string mode) override
+	{
+		if (mode == "NEE")
+			SetMode(NEE);
+		else if (mode == "IS")
+			SetMode(IS);
+		else if (mode == "NEE_IS")
+			SetMode(NEE_IS);
+		else if (mode == "NEE_MIS")
+			SetMode(NEE_MIS);
+		else if (mode == "Reference MF")
+			SetMode(ReferenceMicrofacet);
+		else if (mode == "Reference")
+			SetMode(Reference);
+	}
+
   private:
 	prims::WorldScene *m_Scene;
 	glm::vec3 *m_Pixels;
