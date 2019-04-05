@@ -222,7 +222,6 @@ void MBVHTree::TraverseWithStack(core::Ray &r) const
 
 	todo[0].leftFirst = 0;
 	todo[0].count = -1;
-	todo[0].tNear = 0;
 	const std::vector<prims::SceneObject *> &objects = m_ObjectList->GetObjects();
 
 	while (stackptr >= 0)
@@ -251,7 +250,6 @@ void MBVHTree::TraverseWithStack(core::Ray &r) const
 						stackptr++;
 						todo[stackptr].leftFirst = n.child[idx];
 						todo[stackptr].count = n.count[idx];
-						todo[stackptr].tNear = mHit.tmin[idx];
 					}
 				}
 			}
