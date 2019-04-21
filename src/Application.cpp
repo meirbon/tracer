@@ -505,12 +505,9 @@ void Application::Draw(float deltaTime)
 	if (m_Type == CPU)
 		ImGui::Text("BVH Idx: %i", m_Scene->GetActiveDynamicTreeIndex());
 
-	for (float fp : frametimes)
-		avgFrametime += fp;
-	avgFrametime = (1000.f / (avgFrametime / frametimes.size()));
-
-	ImGui::Text("FPS: %f", avgFrametime);
-	ImGui::PlotHistogram("", ft.data(), frametimes.size(), 0, "Frametimes", 0.0f, maxFrametime, ImVec2(300, 100));
+	avgFrametime = (avgFrametime / float(frametimes.size()));
+	ImGui::Text("FPS: %f", 1000.0f / avgFrametime);
+	ImGui::PlotHistogram("", ft.data(), frametimes.size(), 0, "Frame times", 0.0f, maxFrametime, ImVec2(300, 100));
 	//	bool (*items_getter)(void* data, int idx, const char** out_text)
 	const auto modes = m_Renderer->GetModes();
 	lastMode = renderMode;

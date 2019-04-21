@@ -196,7 +196,7 @@ void TrianglePlane::create(vec3 topRight, vec3 topLeft, vec3 bottomRight, uint m
 	// invert it to find lower-right point
 	const vec3 p3 = vec3(minX, minY, minZ);
 
-	const auto normal = -normalize(cross(topLeft - topRight, bottomRight - topRight));
+	const auto normal = normalize(cross(topLeft - topRight, bottomRight - topRight));
 	tList->addTriangle(topRight, topLeft, bottomRight, normal, normal, normal, matIndex, vec2(0, 0), vec2(1, 0),
 					   vec2(0, 1));
 	tList->addTriangle(bottomRight, topLeft, p3, normal, normal, normal, matIndex, vec2(0, 1), vec2(1, 0), vec2(1, 1));

@@ -27,13 +27,13 @@ struct TextureInfo
 
 struct GpuCamera
 {
-	glm::vec4 origin; // 16
+	glm::vec4 origin;		 // 16
 	glm::vec4 viewDirection; // 32
 
 	float viewDistance; // 36
 	float invWidth;		// 40
-	float invHeight;   // 44
-	float aspectRatio; // 48
+	float invHeight;	// 44
+	float aspectRatio;  // 48
 };
 
 WFTracer::WFTracer(TriangleList *tList, gl::Texture *t1, gl::Texture *t2, Camera *camera, Surface *skybox,
@@ -86,6 +86,7 @@ WFTracer::~WFTracer()
 	delete cameraBuffer;
 	delete materialBuffer;
 	delete microfacetBuffer;
+	delete matIndicesBuffer;
 	delete verticesBuffer;
 	delete normalBuffer;
 	delete texCoordBuffer;
@@ -105,7 +106,7 @@ void WFTracer::Render(Surface *output)
 	frame++;
 
 	wGenerateRayKernel->SetArgument(8, frame);
-	wShadeKernel->SetArgument(17, frame);
+	wShadeKernel->SetArgument(18, frame);
 
 	wGenerateRayKernel->Run(outputBuffer);
 	wIntersectKernel->Run();
@@ -194,6 +195,7 @@ void WFTracer::setupObjects()
 	cnBuffer = new Buffer(m_TList->m_CenterNormals.size() * sizeof(vec4), m_TList->m_CenterNormals.data());
 	indicesBuffer = new Buffer(m_TList->m_Indices.size() * sizeof(int) * 4, m_TList->m_Indices.data());
 	lightIndices = new Buffer(m_TList->m_LightIndices.size() * sizeof(int) * 4, m_TList->m_LightIndices.data());
+	matIndicesBuffer = new Buffer(m_TList->m_MaterialIdxs.size() * sizeof(int), m_TList->m_MaterialIdxs.data());
 
 	verticesBuffer->CopyToDevice();
 	normalBuffer->CopyToDevice();
@@ -201,6 +203,7 @@ void WFTracer::setupObjects()
 	cnBuffer->CopyToDevice();
 	indicesBuffer->CopyToDevice();
 	lightIndices->CopyToDevice();
+	matIndicesBuffer->CopyToDevice();
 }
 
 void WFTracer::setupMaterials()
@@ -239,12 +242,13 @@ void WFTracer::setupTextures()
 			const int offset = textureInfos[i].offset;
 
 			auto tex = MaterialManager::GetInstance()->GetTextures()[i];
-			memcpy(&textureColors.data()[offset], tex->GetTextureBuffer(), tex->GetWidth() * tex->GetHeight() * sizeof(vec4));
+			memcpy(&textureColors.data()[offset], tex->GetTextureBuffer(),
+				   tex->GetWidth() * tex->GetHeight() * sizeof(vec4));
 		}
 
 		textureBuffer = new Buffer(vec4Offset * sizeof(vec4), textureColors.data());
 		textureBuffer->CopyToDevice();
-		textureInfoBuffer =new Buffer(textureInfos.size() * sizeof(TextureInfo), textureInfos.data());
+		textureInfoBuffer = new Buffer(textureInfos.size() * sizeof(TextureInfo), textureInfos.data());
 		textureInfoBuffer->CopyToDevice();
 	}
 	else
@@ -315,10 +319,11 @@ void WFTracer::setArguments()
 	wShadeKernel->SetArgument(11, skyDome);
 	wShadeKernel->SetArgument(12, skyDomeInfo);
 	wShadeKernel->SetArgument(13, microfacetBuffer);
-	wShadeKernel->SetArgument(14, m_HasSkybox ? 1 : 0);
-	wShadeKernel->SetArgument(15, width);
-	wShadeKernel->SetArgument(16, height);
-	wShadeKernel->SetArgument(17, frame);
+	wShadeKernel->SetArgument(14, matIndicesBuffer);
+	wShadeKernel->SetArgument(15, m_HasSkybox ? 1 : 0);
+	wShadeKernel->SetArgument(16, width);
+	wShadeKernel->SetArgument(17, height);
+	wShadeKernel->SetArgument(18, frame);
 
 	wDrawKernel->SetArgument(0, outputBuffer);
 	wDrawKernel->SetArgument(1, colorBuffer);

@@ -9,6 +9,14 @@
 
 #define LIGHT_MASK 0x01
 
+enum MaterialType
+{
+	Light = 1,
+	Lambert = 2,
+	Specular = 3,
+	Fresnel = 4
+};
+
 struct Material
 {
   public:
@@ -87,6 +95,7 @@ struct Material
 		mat.refractionIndex = refractionIdx;
 		mat.textureIdx = diffuseTex;
 		mat.shininess = 1.0f;
+		mat.flags = 2;
 		// mat.normalTex = normalTex;
 		// mat.maskTex = maskTex;
 		// mat.displaceTex = displaceTex;
@@ -102,6 +111,7 @@ struct Material
 		mat.MakeLight();
 		mat.emission = glm::max(emission, glm::vec3(0.01f));
 		mat.absorption = glm::vec3(0.0f);
+		mat.flags = 1;
 		return mat;
 	}
 
@@ -112,6 +122,7 @@ struct Material
 		mat.albedo = albedo;
 		mat.refractionIndex = refractionIdx;
 		mat.shininess = 10000.0f;
+		mat.flags = 3;
 		return mat;
 	}
 
@@ -125,6 +136,7 @@ struct Material
 		mat.absorption = absorption;
 		mat.shininess = glm::max(roughness, 2.0f);
 		mat.diffuse = 0.0f;
+		mat.flags = 4;
 		return mat;
 	}
 };

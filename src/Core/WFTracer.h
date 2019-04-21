@@ -72,6 +72,7 @@ class WFTracer : public Renderer
 	cl::Buffer *cameraBuffer = nullptr;
 	cl::Buffer *materialBuffer = nullptr;
 	cl::Buffer *microfacetBuffer = nullptr;
+	cl::Buffer *matIndicesBuffer = nullptr;
 
 	cl::Buffer *verticesBuffer = nullptr;
 	cl::Buffer *normalBuffer = nullptr;

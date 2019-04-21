@@ -4,8 +4,8 @@
 #include "Utils/GLFWWindow.h"
 #include "Utils/Timer.h"
 
-constexpr int SCRWIDTH = 1024;
-constexpr int SCRHEIGHT = 512;
+constexpr int SCRWIDTH = 1280;
+constexpr int SCRHEIGHT = 720;
 
 using namespace utils;
 
@@ -55,14 +55,14 @@ int main(int argc, char *argv[])
 			{
 				if (event.state == KEY_PRESSED)
 					app->MouseDown(event.key);
-				else
+				else if (event.state == KEY_RELEASED)
 					app->MouseUp(event.key);
 			}
 			else
 			{
 				if (event.state == KEY_PRESSED)
 					app->KeyDown(event.key);
-				else
+				else if (event.state == KEY_RELEASED)
 					app->KeyUp(event.key);
 			}
 			break;

@@ -17,6 +17,7 @@ typedef struct
 bool r_valid(Ray r);
 float3 r_reflect(float3 dir, float3 normal);
 float3 r_refract(int inside, Material mat, float3 *dir, float3 N, uint *seed, float t);
+float3 r_cos_reflect(float3 normal, uint *seed);
 float3 r_diffuse_reflect(float3 normal, uint *seed);
 float3 sampleHemi(float r1, float r2);
 float3 sampleCos(float r1, float r2);
@@ -65,6 +66,14 @@ float3 r_diffuse_reflect(float3 normal, uint *seed)
 	float3 Nt, Nb;
 	worldToLocal(normal, &Nt, &Nb);
 	float3 sample = sampleHemi(RandomFloat(seed), RandomFloat(seed));
+	return normalize(localToWorld(sample, Nt, Nb, normal));
+}
+
+float3 r_cos_reflect(float3 normal, uint* seed) 
+{
+	float3 Nt, Nb;
+	worldToLocal(normal, &Nt, &Nb);
+	float3 sample = sampleCos(RandomFloat(seed), RandomFloat(seed));
 	return normalize(localToWorld(sample, Nt, Nb, normal));
 }
 

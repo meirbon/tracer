@@ -29,7 +29,7 @@ typedef struct Material
 
 	float transparency; // 52
 	int textureIdx;		// 56
-	uint flags;			// 60
+	uint type;			// 60
 	float dummy;
 } Material;
 
