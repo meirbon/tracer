@@ -11,9 +11,9 @@ const __m128 QuadOne = _mm_set1_ps(1.f);
 
 bool GameObjectNode::Intersect(const core::Ray &r) const
 {
-	const __m128 dirInversed = _mm_div_ps(QuadOne, r.m_Direction4);
-	const __m128 t1 = _mm_mul_ps(_mm_sub_ps(boundsWorldSpace.bmin4, r.m_Origin4), dirInversed);
-	const __m128 t2 = _mm_mul_ps(_mm_sub_ps(boundsWorldSpace.bmax4, r.m_Origin4), dirInversed);
+	const __m128 dirInversed = _mm_div_ps(QuadOne, _mm_load_ps(glm::value_ptr(r.direction)));
+	const __m128 t1 = _mm_mul_ps(_mm_sub_ps(boundsWorldSpace.bmin4, _mm_load_ps(glm::value_ptr(r.origin))), dirInversed);
+	const __m128 t2 = _mm_mul_ps(_mm_sub_ps(boundsWorldSpace.bmax4, _mm_load_ps(glm::value_ptr(r.origin))), dirInversed);
 
 	union {
 		__m128 f4;

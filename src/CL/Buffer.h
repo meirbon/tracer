@@ -29,6 +29,7 @@ namespace cl
 {
 enum BufferType
 {
+  	DEFAULT = 0,
 	TEXTURE = 1,
 	TARGET = 2
 };

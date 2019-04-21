@@ -56,20 +56,20 @@ class GpuTracer : public Renderer
 	{
 		cl::Kernel::SyncQueue();
 		m_Mode = mode;
-		intersectRaysKernelRef->SetArgument(18, m_Mode);
-		intersectRaysKernelOpt->SetArgument(18, m_Mode);
-		intersectRaysKernelBVH->SetArgument(18, m_Mode);
-		intersectRaysKernelMF->SetArgument(18, m_Mode);
+//		intersectRaysKernelRef->SetArgument(18, m_Mode);
+//		intersectRaysKernelOpt->SetArgument(18, m_Mode);
+//		intersectRaysKernelBVH->SetArgument(18, m_Mode);
+//		intersectRaysKernelMF->SetArgument(18, m_Mode);
 	}
 
 	inline void SwitchSkybox() override
 	{
 		cl::Kernel::SyncQueue();
 		this->m_SkyboxEnabled = (this->m_HasSkybox && !this->m_SkyboxEnabled);
-		intersectRaysKernelRef->SetArgument(15, m_SkyboxEnabled);
-		intersectRaysKernelOpt->SetArgument(15, m_SkyboxEnabled);
-		intersectRaysKernelBVH->SetArgument(15, m_SkyboxEnabled);
-		intersectRaysKernelMF->SetArgument(15, m_SkyboxEnabled);
+//		intersectRaysKernelRef->SetArgument(15, m_SkyboxEnabled);
+//		intersectRaysKernelOpt->SetArgument(15, m_SkyboxEnabled);
+//		intersectRaysKernelBVH->SetArgument(15, m_SkyboxEnabled);
+//		intersectRaysKernelMF->SetArgument(15, m_SkyboxEnabled);
 	}
 
 	void Resize(gl::Texture *newOutput) override;
@@ -164,10 +164,12 @@ class GpuTracer : public Renderer
 	cl::Kernel *intersectRaysKernelOpt = nullptr;
 	cl::Kernel *drawKernel = nullptr;
 
+	cl::Kernel *wGenerateRayKernel = nullptr;
 	cl::Kernel *wIntersectKernel = nullptr;
 	cl::Kernel *wShadeKernel = nullptr;
 	cl::Kernel *wDrawKernel = nullptr;
 
+	uint frame = 0;
 	int tIndex = 0;
 	int m_Samples = 0;
 	int m_Width{}, m_Height{};

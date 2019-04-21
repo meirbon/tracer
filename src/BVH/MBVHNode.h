@@ -63,8 +63,9 @@ class MBVHNode
 
 	void SetBounds(unsigned int nodeIdx, const bvh::AABB &bounds);
 
-	unsigned int IntersectDebug(core::Ray &r, const __m128 &dirX, const __m128 &dirY, const __m128 &dirZ, const __m128 &orgX,
-								const __m128 &orgY, const __m128 &orgZ, const bvh::MBVHNode *pool) const;
+	unsigned int IntersectDebug(core::Ray &r, const __m128 &dirX, const __m128 &dirY, const __m128 &dirZ,
+								const __m128 &orgX, const __m128 &orgY, const __m128 &orgZ,
+								const bvh::MBVHNode *pool) const;
 
 	void Intersect(core::Ray &r, const __m128 &dirX, const __m128 &dirY, const __m128 &dirZ, const __m128 &orgX,
 				   const __m128 &orgY, const __m128 &orgZ, const bvh::MBVHNode *pool,

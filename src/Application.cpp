@@ -2,6 +2,9 @@
 #include "Materials/MaterialManager.h"
 #include "imgui.h"
 
+#include "Core/WFTracer.h"
+#include "Primitives/TriangleList.h"
+
 #include <algorithm>
 #include <deque>
 
@@ -13,12 +16,15 @@ static std::deque<float> frametimes = {};
 static int lastMode = 0;
 static int renderMode = 0;
 static float maxFrametime = 10.0f;
+static float movementspeedModifier = 1.0f;
 auto *gameObjects = new std::vector<bvh::GameObject *>();
 
 bvh::GameObject *motherGameObject;
 #if CUBES
 bvh::GameObject *cubeMother1, *cubeMother2, *cubeMother3, *cubeMother4;
 #endif
+
+static TriangleList *triangleList = new TriangleList();
 
 Application::Application(utils::Window *window, RendererType type, int width, int height, const char *scene,
 						 const char *skybox)
@@ -40,8 +46,7 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 	m_DrawShader = new gl::Shader("shaders/quad.vert", "shaders/quad.frag");
 	m_Camera = Camera(m_Width, m_Height, 80.f);
 
-	auto defaultMaterial =
-		static_cast<unsigned int>(MaterialManager::GetInstance()->AddMaterial(Material(1.0f, vec3(1.0f), 8.0f)));
+	auto defaultMaterial = MaterialManager::GetInstance()->AddMaterial(Material(1.0f, vec3(1.0f), 8.0f));
 
 	if (m_Type == CPU || m_Type == CPU_RAYTRACER)
 	{
@@ -49,16 +54,26 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 			prims::Load(scene, defaultMaterial, glm::vec3(0.0f), 1.0f, m_ObjectList);
 		else
 			Dragon(m_ObjectList);
+		//			Micromaterials(m_ObjectList);
 	}
 	else
 	{
 		if (scene != nullptr)
-			prims::Load(scene, defaultMaterial, glm::vec3(0.0f), 1.0f, m_GpuList);
+		{
+			// prims::Load(scene, defaultMaterial, glm::vec3(0.0f), 1.0f, m_GpuList);
+			std::cout << "Loading model: " << scene << std::endl;
+			triangleList->loadModel(scene, 1.0f, mat4(1.0f), -1, true);
+		}
 		else
-			Dragon(m_GpuList);
+		{
+			Micromaterials(triangleList);
+		}
+		// else
+		// Dragon(m_GpuList);
+		//			Micromaterials(m_GpuList);
 
-		if (m_GpuList->GetTriangles().empty())
-			utils::FatalError(__FILE__, __LINE__, "No triangles for GPU, exiting.", "GPU Init");
+		// if (m_GpuList->GetTriangles().empty())
+		// 	utils::FatalError(__FILE__, __LINE__, "No triangles for GPU, exiting.", "GPU Init");
 	}
 
 	m_Skybox = new core::Surface(skybox != nullptr ? skybox : "models/envmaps/pisa.png");
@@ -231,9 +246,10 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 	case (GPU):
 	{
 		std::cout << "Primitive count: " << m_GpuList->GetTriangles().size() << std::endl;
-		m_Renderer =
-			new core::GpuTracer(m_GpuList, m_OutputTexture[0], m_OutputTexture[1], &m_Camera, m_Skybox, m_TPool);
-		m_Renderer->SetMode(core::Mode::ReferenceMicrofacet);
+		m_Renderer = new WFTracer(triangleList, m_OutputTexture[0], m_OutputTexture[1], &m_Camera, m_Skybox, m_TPool);
+		// m_Renderer =
+		// 	new core::GpuTracer(m_GpuList, m_OutputTexture[0], m_OutputTexture[1], &m_Camera, m_Skybox, m_TPool);
+		// m_Renderer->SetMode(core::Mode::ReferenceMicrofacet);
 		break;
 	}
 	case (CPU_RAYTRACER):
@@ -255,6 +271,8 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 		break;
 	}
 	}
+
+	std::cout << "Init done." << std::endl;
 }
 
 Application::~Application()
@@ -271,6 +289,8 @@ Application::~Application()
 	delete m_Renderer;
 	delete m_Skybox;
 	delete m_Scene;
+
+	delete triangleList;
 }
 
 void Application::Tick(float deltaTime) noexcept
@@ -310,7 +330,8 @@ void Application::Tick(float deltaTime) noexcept
 
 void Application::HandleKeys(float deltaTime) noexcept
 {
-	const float movementSpeed = deltaTime * MOVEMENT_SPEED * (m_KeyStatus[GLFW_KEY_LEFT_SHIFT] ? 4.f : 1.f);
+	const float movementSpeed =
+		deltaTime * MOVEMENT_SPEED * (m_KeyStatus[GLFW_KEY_LEFT_SHIFT] ? 4.f : 1.f) * movementspeedModifier;
 	const float rotationSpeed = deltaTime * 0.5f * (m_KeyStatus[GLFW_KEY_LEFT_SHIFT] ? 2.f : 1.f);
 	bool resetSamples = false;
 
@@ -404,42 +425,43 @@ void Application::HandleKeys(float deltaTime) noexcept
 
 	if (resetSamples)
 	{
+		m_Camera.isDirty = true;
 		m_Renderer->Reset();
 	}
 }
 
-void Application::MouseScroll(bool x, bool y)
+void Application::MouseScroll(glm::bvec2 xy)
 {
 	if (!m_MovementLocked)
 	{
-		m_Camera.ChangeFOV(m_Camera.GetFOV() + (y ? 1 : -1) * 2);
+		m_Camera.ChangeFOV(m_Camera.GetFOV() + (xy.y ? 1 : -1) * 2);
 		m_Renderer->Reset();
 	}
 }
 
-void Application::MouseScroll(float x, float y)
+void Application::MouseScroll(glm::vec2 xy)
 {
 	if (!m_MovementLocked)
 	{
-		m_Camera.ChangeFOV(m_Camera.GetFOV() + y);
+		m_Camera.ChangeFOV(m_Camera.GetFOV() + xy.y);
 		m_Renderer->Reset();
 	}
 }
 
-void Application::MouseMove(int x, int y)
+void Application::MouseMove(glm::ivec2 xy)
 {
 	if (!m_MovementLocked && m_MouseKeyStatus[GLFW_MOUSE_BUTTON_LEFT])
 	{
-		m_Camera.ProcessMouse(x, y);
+		m_Camera.ProcessMouse(xy.x, xy.y);
 		m_Renderer->Reset();
 	}
 }
 
-void Application::MouseMove(float x, float y)
+void Application::MouseMove(glm::vec2 xy)
 {
 	if (!m_MovementLocked && m_MouseKeyStatus[GLFW_MOUSE_BUTTON_LEFT])
 	{
-		m_Camera.ProcessMouse(x, y);
+		m_Camera.ProcessMouse(xy.x, xy.y);
 		m_Renderer->Reset();
 	}
 }
@@ -464,6 +486,7 @@ void Application::Draw(float deltaTime)
 	}
 
 	ImGui::Begin("Information");
+	ImGui::DragFloat("Speed", &movementspeedModifier);
 	if (ImGui::Button("Reset"))
 		m_Renderer->Reset();
 
@@ -484,7 +507,7 @@ void Application::Draw(float deltaTime)
 
 	for (float fp : frametimes)
 		avgFrametime += fp;
-	avgFrametime = (1000.f / (avgFrametime / FPS_FRAMES));
+	avgFrametime = (1000.f / (avgFrametime / frametimes.size()));
 
 	ImGui::Text("FPS: %f", avgFrametime);
 	ImGui::PlotHistogram("", ft.data(), frametimes.size(), 0, "Frametimes", 0.0f, maxFrametime, ImVec2(300, 100));

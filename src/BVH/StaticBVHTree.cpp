@@ -1,5 +1,7 @@
-#include "StaticBVHTree.h"
+#include <utility>
+
 #include "Primitives/GpuTriangleList.h"
+#include "StaticBVHTree.h"
 #include "Utils/Timer.h"
 
 #define PRINT_BUILD_TIME 1
@@ -7,39 +9,40 @@
 
 namespace bvh
 {
-bvh::StaticBVHTree::StaticBVHTree(prims::SceneObjectList *objectList, BVHType type, ctpl::ThreadPool *pool)
+
+StaticBVHTree::StaticBVHTree(std::vector<AABB> aabbs, BVHType type, ctpl::ThreadPool *pool)
+	: m_Type(type), m_ThreadPool(pool), m_AABBs(std::move(aabbs))
 {
-	this->m_ObjectList = objectList;
-	this->m_Type = type;
-	this->m_ThreadPool = pool;
 	Reset();
 }
 
-bvh::StaticBVHTree::StaticBVHTree(prims::GpuTriangleList *objectList, BVHType type, ctpl::ThreadPool *pool)
+StaticBVHTree::StaticBVHTree(prims::SceneObjectList *objectList, BVHType type, ctpl::ThreadPool *pool)
 {
-	this->m_TriangleList = objectList;
-	this->m_Type = type;
-	this->m_ThreadPool = pool;
+	m_ObjectList = objectList;
+	m_Type = type;
+	m_ThreadPool = pool;
+
+	m_AABBs = m_ObjectList->GetAABBs();
+	Reset();
+}
+
+StaticBVHTree::StaticBVHTree(prims::GpuTriangleList *objectList, BVHType type, ctpl::ThreadPool *pool)
+{
+	m_TriangleList = objectList;
+	m_Type = type;
+	m_ThreadPool = pool;
+
+	m_AABBs = m_TriangleList->GetAABBs();
 	ResetGPU();
 }
 
-void bvh::StaticBVHTree::ConstructBVH()
+void StaticBVHTree::ConstructBVH()
 {
-	if (this->m_ObjectList != nullptr)
-	{
-		m_AABBs = m_ObjectList->GetAABBs();
+	if (!m_AABBs.empty())
 		BuildBVH();
-		return;
-	}
-
-	if (this->m_TriangleList != nullptr)
-	{
-		m_AABBs = m_TriangleList->GetAABBs();
-		BuildBVH();
-	}
 }
 
-void bvh::StaticBVHTree::BuildBVH()
+void StaticBVHTree::BuildBVH()
 {
 	m_ThreadLimitReached = false;
 	m_BuildingThreads = 0;
@@ -86,20 +89,22 @@ void bvh::StaticBVHTree::BuildBVH()
 	}
 }
 
-void bvh::StaticBVHTree::Reset()
+void StaticBVHTree::Reset()
 {
 	CanUseBVH = false;
 	m_BVHPool.clear();
 
-	m_PrimitiveCount = m_ObjectList->GetPrimitiveCount();
+	m_PrimitiveCount = m_AABBs.size();
 	if (m_PrimitiveCount > 0)
 	{
-		m_PrimitiveIndices = m_ObjectList->GetPrimitiveIndices();
+		m_PrimitiveIndices.clear();
+		for (uint i = 0; i < m_PrimitiveCount; i++)
+			m_PrimitiveIndices.push_back(i);
 		m_BVHPool.resize(m_PrimitiveCount * 2);
 	}
 }
 
-void bvh::StaticBVHTree::ResetGPU()
+void StaticBVHTree::ResetGPU()
 {
 	CanUseBVH = false;
 	m_BVHPool.clear();
@@ -112,9 +117,9 @@ void bvh::StaticBVHTree::ResetGPU()
 	}
 }
 
-bvh::BVHNode &bvh::StaticBVHTree::GetNode(unsigned int idx) { return m_BVHPool[idx]; }
+BVHNode &StaticBVHTree::GetNode(unsigned int idx) { return m_BVHPool[idx]; }
 
-void bvh::StaticBVHTree::TraceRay(core::Ray &r) const
+void StaticBVHTree::TraceRay(core::Ray &r) const
 {
 	if (CanUseBVH)
 	{
@@ -131,7 +136,7 @@ void bvh::StaticBVHTree::TraceRay(core::Ray &r) const
 	r.normal = r.obj->GetNormal(r.GetHitpoint());
 }
 
-bool bvh::StaticBVHTree::TraceShadowRay(core::Ray &r, float tMax) const
+bool StaticBVHTree::TraceShadowRay(core::Ray &r, float tMax) const
 {
 	if (CanUseBVH)
 	{
@@ -148,7 +153,7 @@ bool bvh::StaticBVHTree::TraceShadowRay(core::Ray &r, float tMax) const
 	return r.t < tMax;
 }
 
-void bvh::StaticBVHTree::IntersectWithStack(core::Ray &r) const
+void StaticBVHTree::IntersectWithStack(core::Ray &r) const
 {
 	BVHTraversal todo[64];
 	int stackptr = 0;
@@ -219,9 +224,9 @@ void bvh::StaticBVHTree::IntersectWithStack(core::Ray &r) const
 	}
 }
 
-const std::vector<prims::SceneObject *> &bvh::StaticBVHTree::GetLights() const { return m_ObjectList->GetLights(); }
+const std::vector<prims::SceneObject *> &StaticBVHTree::GetLights() const { return m_ObjectList->GetLights(); }
 
-unsigned int bvh::StaticBVHTree::GetPrimitiveCount() { return static_cast<unsigned int>(m_PrimitiveCount); }
+unsigned int StaticBVHTree::GetPrimitiveCount() { return static_cast<unsigned int>(m_PrimitiveCount); }
 
 unsigned int StaticBVHTree::TraceDebug(core::Ray &r) const
 {
@@ -236,5 +241,5 @@ unsigned int StaticBVHTree::TraceDebug(core::Ray &r) const
 	return 0;
 }
 
-AABB bvh::StaticBVHTree::GetNodeBounds(unsigned int index) { return m_AABBs[index]; }
+AABB StaticBVHTree::GetNodeBounds(unsigned int index) { return m_AABBs[index]; }
 } // namespace bvh

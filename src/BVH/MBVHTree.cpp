@@ -1,6 +1,8 @@
 #include "MBVHTree.h"
 #include "MBVHNode.h"
 
+#include <glm/ext.hpp>
+
 #define PRINT_BUILD_TIME 1
 #define THREADING 0
 
@@ -57,59 +59,58 @@ unsigned int MBVHTree::TraverseDebug(core::Ray &r) const
 
 void MBVHTree::ConstructBVH()
 {
+	const uint primCount = m_OriginalTree->m_AABBs.size();
+	if (primCount <= 0)
+		return;
+
 	m_Tree.clear();
-	m_Tree.resize(m_OriginalTree->m_PrimitiveCount * 2);
-	if (this->m_OriginalTree->GetPrimitiveCount() > 0)
-	{
+	m_Tree.resize(primCount * 2);
 #if PRINT_BUILD_TIME
-		utils::Timer t{};
+	utils::Timer t{};
 #endif
-		m_FinalPtr = 1;
-		MBVHNode &mRootNode = m_Tree[0];
-		BVHNode &curNode = m_OriginalTree->GetNode(0);
+	m_FinalPtr = 1;
+	MBVHNode &mRootNode = m_Tree[0];
+	BVHNode &curNode = m_OriginalTree->GetNode(0);
 #if THREADING // threading is not actually faster here
-		// Only use threading when we have a large number of primitives,
-		// otherwise threading is actually slower
-		if (m_OriginalTree->m_ThreadPool != nullptr && m_OriginalTree->GetPrimitiveCount() >= 250000)
-		{
-			m_ThreadLimitReached = false;
-			m_BuildingThreads = 0;
-			mRootNode.MergeNodesMT(curNode, this->m_OriginalTree->m_BVHPool, this);
-		}
-		else
-		{
-			mRootNode.MergeNodes(curNode, this->m_OriginalTree->m_BVHPool, this);
-		}
-#else
+	// Only use threading when we have a large number of primitives,
+	// otherwise threading is actually slower
+	if (m_OriginalTree->m_ThreadPool != nullptr && m_OriginalTree->GetPrimitiveCount() >= 250000)
+	{
+		m_ThreadLimitReached = false;
+		m_BuildingThreads = 0;
+		mRootNode.MergeNodesMT(curNode, this->m_OriginalTree->m_BVHPool, this);
+	}
+	else
+	{
 		mRootNode.MergeNodes(curNode, this->m_OriginalTree->m_BVHPool, this);
+	}
+#else
+	mRootNode.MergeNodes(curNode, this->m_OriginalTree->m_BVHPool, this);
 #endif
-		m_Bounds = m_OriginalTree->GetNode(0).bounds;
+	m_Bounds = m_OriginalTree->GetNode(0).bounds;
 
 #if PRINT_BUILD_TIME
-		std::cout << "Building MBVH took: " << t.elapsed() << " ms." << std::endl;
+	std::cout << "Building MBVH took: " << t.elapsed() << " ms." << std::endl;
 #endif
-		m_CanUseBVH = true;
-	}
+	m_CanUseBVH = true;
 }
 
 static const __m128 QuadOne = _mm_set1_ps(1.f);
 
 void MBVHTree::TraceRay(core::Ray &r) const
 {
-	const __m128 dirInversed = _mm_div_ps(QuadOne, r.m_Direction4);
-	const __m128 t1 = _mm_mul_ps(_mm_sub_ps(m_Bounds.bmin4, r.m_Origin4), dirInversed);
-	const __m128 t2 = _mm_mul_ps(_mm_sub_ps(m_Bounds.bmax4, r.m_Origin4), dirInversed);
+	const vec3 dir_inv = 1.0f / r.direction;
+	const vec3 bMin = {m_Bounds.bmin[0], m_Bounds.bmin[1], m_Bounds.bmin[2]};
+	const vec3 bMax = {m_Bounds.bmax[0], m_Bounds.bmax[1], m_Bounds.bmax[2]};
 
-	union {
-		__m128 f4;
-		float f[4];
-	} qvmax, qvmin;
+	const vec3 t1 = bMin - r.origin * dir_inv;
+	const vec3 t2 = bMax - r.origin * dir_inv;
 
-	qvmax.f4 = _mm_max_ps(t1, t2);
-	qvmin.f4 = _mm_min_ps(t1, t2);
+	const vec3 tMax = glm::max(t1, t2);
+	const vec3 tMin = glm::min(t1, t2);
 
-	const float tmax = glm::min(qvmax.f[0], glm::min(qvmax.f[1], qvmax.f[2]));
-	const float tmin = glm::max(qvmin.f[0], glm::max(qvmin.f[1], qvmin.f[2]));
+	const float tmax = min(tMax.x, min(tMax.y, tMax.z));
+	const float tmin = max(tMin.x, max(tMin.y, tMin.z));
 
 	if (tmax >= 0 && tmin < tmax)
 	{
@@ -127,20 +128,18 @@ void MBVHTree::TraceRay(core::Ray &r) const
 
 bool MBVHTree::TraceShadowRay(core::Ray &r, float tMax) const
 {
-	const __m128 dirInversed = _mm_div_ps(QuadOne, r.m_Direction4);
-	const __m128 t1 = _mm_mul_ps(_mm_sub_ps(m_Bounds.bmin4, r.m_Origin4), dirInversed);
-	const __m128 t2 = _mm_mul_ps(_mm_sub_ps(m_Bounds.bmax4, r.m_Origin4), dirInversed);
+	const vec3 dir_inv = 1.0f / r.direction;
+	const vec3 bMin = {m_Bounds.bmin[0], m_Bounds.bmin[1], m_Bounds.bmin[2]};
+	const vec3 bMax = {m_Bounds.bmax[0], m_Bounds.bmax[1], m_Bounds.bmax[2]};
 
-	union {
-		__m128 f4;
-		float f[4];
-	} qvmax, qvmin;
+	const vec3 t1 = bMin - r.origin * dir_inv;
+	const vec3 t2 = bMax - r.origin * dir_inv;
 
-	qvmax.f4 = _mm_max_ps(t1, t2);
-	qvmin.f4 = _mm_min_ps(t1, t2);
+	const vec3 tMa = glm::max(t1, t2);
+	const vec3 tMi = glm::min(t1, t2);
 
-	const float tmax = glm::min(qvmax.f[0], glm::min(qvmax.f[1], qvmax.f[2]));
-	const float tmin = glm::max(qvmin.f[0], glm::max(qvmin.f[1], qvmin.f[2]));
+	const float tmax = min(tMa.x, min(tMa.y, tMa.z));
+	const float tmin = max(tMi.x, max(tMi.y, tMi.z));
 
 	if (tmax >= 0 && tmin < tmax)
 	{
@@ -182,9 +181,9 @@ unsigned int MBVHTree::TraceDebug(core::Ray &r) const
 {
 	unsigned int depth = 0;
 
-	const __m128 dirInversed = _mm_div_ps(QuadOne, r.m_Direction4);
-	const __m128 t1 = _mm_mul_ps(_mm_sub_ps(m_Bounds.bmin4, r.m_Origin4), dirInversed);
-	const __m128 t2 = _mm_mul_ps(_mm_sub_ps(m_Bounds.bmax4, r.m_Origin4), dirInversed);
+	const __m128 dirInversed = _mm_div_ps(QuadOne, _mm_load_ps(glm::value_ptr(r.direction)));
+	const __m128 t1 = _mm_mul_ps(_mm_sub_ps(m_Bounds.bmin4, _mm_load_ps(glm::value_ptr(r.origin))), dirInversed);
+	const __m128 t2 = _mm_mul_ps(_mm_sub_ps(m_Bounds.bmax4, _mm_load_ps(glm::value_ptr(r.origin))), dirInversed);
 
 	union {
 		__m128 f4;

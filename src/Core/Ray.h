@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <immintrin.h>
 
 #include "Utils/RandomGenerator.h"
 
@@ -40,23 +41,11 @@ struct Ray
 
 	glm::vec3 TransformToTangent(const glm::vec3 &normal, glm::vec3 vector) const;
 
-	union {
-		struct
-		{
-			glm::vec3 direction;
-			float t;
-		};
-		__m128 m_Direction4;
-	};
+	glm::vec3 direction;
+	float t;
 
-	union {
-		struct
-		{
-			glm::vec3 origin;
-			float wO;
-		};
-		__m128 m_Origin4;
-	};
+	glm::vec3 origin;
+	float wO;
 
 	const prims::SceneObject *obj;
 	glm::vec3 normal;

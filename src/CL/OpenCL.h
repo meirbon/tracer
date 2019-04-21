@@ -37,148 +37,148 @@ inline bool CheckCL(cl_int result, const char *file, int line)
 	case (CL_SUCCESS):
 		return true;
 	case (CL_DEVICE_NOT_FOUND):
-		FatalError(__FILE__, __LINE__, "Error: CL_DEVICE_NOT_FOUND", "OpenCL error");
+		FatalError(file, line, "Error: CL_DEVICE_NOT_FOUND", "OpenCL error");
 		break;
 	case (CL_DEVICE_NOT_AVAILABLE):
-		FatalError(__FILE__, __LINE__, "Error: CL_DEVICE_NOT_AVAILABLE", "OpenCL error");
+		FatalError(file, line, "Error: CL_DEVICE_NOT_AVAILABLE", "OpenCL error");
 		break;
 	case (CL_COMPILER_NOT_AVAILABLE):
-		FatalError(__FILE__, __LINE__, "Error: CL_COMPILER_NOT_AVAILABLE", "OpenCL error");
+		FatalError(file, line, "Error: CL_COMPILER_NOT_AVAILABLE", "OpenCL error");
 		break;
 	case (CL_MEM_OBJECT_ALLOCATION_FAILURE):
-		FatalError(__FILE__, __LINE__, "Error: CL_MEM_OBJECT_ALLOCATION_FAILURE", "OpenCL error");
+		FatalError(file, line, "Error: CL_MEM_OBJECT_ALLOCATION_FAILURE", "OpenCL error");
 		break;
 	case (CL_OUT_OF_RESOURCES):
-		FatalError(__FILE__, __LINE__, "Error: CL_OUT_OF_RESOURCES", "OpenCL error");
+		FatalError(file, line, "Error: CL_OUT_OF_RESOURCES", "OpenCL error");
 		break;
 	case (CL_OUT_OF_HOST_MEMORY):
-		FatalError(__FILE__, __LINE__, "Error: CL_OUT_OF_HOST_MEMORY", "OpenCL error");
+		FatalError(file, line, "Error: CL_OUT_OF_HOST_MEMORY", "OpenCL error");
 		break;
 	case (CL_PROFILING_INFO_NOT_AVAILABLE):
-		FatalError(__FILE__, __LINE__, "Error: CL_PROFILING_INFO_NOT_AVAILABLE", "OpenCL error");
+		FatalError(file, line, "Error: CL_PROFILING_INFO_NOT_AVAILABLE", "OpenCL error");
 		break;
 	case (CL_MEM_COPY_OVERLAP):
-		FatalError(__FILE__, __LINE__, "Error: CL_MEM_COPY_OVERLAP", "OpenCL error");
+		FatalError(file, line, "Error: CL_MEM_COPY_OVERLAP", "OpenCL error");
 		break;
 	case (CL_IMAGE_FORMAT_MISMATCH):
-		FatalError(__FILE__, __LINE__, "Error: CL_IMAGE_FORMAT_MISMATCH", "OpenCL error");
+		FatalError(file, line, "Error: CL_IMAGE_FORMAT_MISMATCH", "OpenCL error");
 		break;
 	case (CL_IMAGE_FORMAT_NOT_SUPPORTED):
-		FatalError(__FILE__, __LINE__, "Error: CL_IMAGE_FORMAT_NOT_SUPPORTED", "OpenCL error");
+		FatalError(file, line, "Error: CL_IMAGE_FORMAT_NOT_SUPPORTED", "OpenCL error");
 		break;
 	case (CL_BUILD_PROGRAM_FAILURE):
-		FatalError(__FILE__, __LINE__, "Error: CL_BUILD_PROGRAM_FAILURE", "OpenCL error");
+		FatalError(file, line, "Error: CL_BUILD_PROGRAM_FAILURE", "OpenCL error");
 		break;
 	case (CL_MAP_FAILURE):
-		FatalError(__FILE__, __LINE__, "Error: CL_MAP_FAILURE", "OpenCL error");
+		FatalError(file, line, "Error: CL_MAP_FAILURE", "OpenCL error");
 		break;
 	case (CL_MISALIGNED_SUB_BUFFER_OFFSET):
-		FatalError(__FILE__, __LINE__, "Error: CL_MISALIGNED_SUB_BUFFER_OFFSET", "OpenCL error");
+		FatalError(file, line, "Error: CL_MISALIGNED_SUB_BUFFER_OFFSET", "OpenCL error");
 		break;
 	case (CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST):
-		FatalError(__FILE__, __LINE__, "Error: CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST", "OpenCL error");
+		FatalError(file, line, "Error: CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST", "OpenCL error");
 		break;
 	case (CL_INVALID_VALUE):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_VALUE", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_VALUE", "OpenCL error");
 		break;
 	case (CL_INVALID_DEVICE_TYPE):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_DEVICE_TYPE", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_DEVICE_TYPE", "OpenCL error");
 		break;
 	case (CL_INVALID_PLATFORM):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_PLATFORM", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_PLATFORM", "OpenCL error");
 		break;
 	case (CL_INVALID_DEVICE):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_DEVICE", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_DEVICE", "OpenCL error");
 		break;
 	case (CL_INVALID_CONTEXT):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_CONTEXT", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_CONTEXT", "OpenCL error");
 		break;
 	case (CL_INVALID_QUEUE_PROPERTIES):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_QUEUE_PROPERTIES", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_QUEUE_PROPERTIES", "OpenCL error");
 		break;
 	case (CL_INVALID_COMMAND_QUEUE):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_COMMAND_QUEUE", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_COMMAND_QUEUE", "OpenCL error");
 		break;
 	case (CL_INVALID_HOST_PTR):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_HOST_PTR", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_HOST_PTR", "OpenCL error");
 		break;
 	case (CL_INVALID_MEM_OBJECT):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_MEM_OBJECT", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_MEM_OBJECT", "OpenCL error");
 		break;
 	case (CL_INVALID_IMAGE_FORMAT_DESCRIPTOR):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_IMAGE_FORMAT_DESCRIPTOR", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_IMAGE_FORMAT_DESCRIPTOR", "OpenCL error");
 		break;
 	case (CL_INVALID_IMAGE_SIZE):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_IMAGE_SIZE", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_IMAGE_SIZE", "OpenCL error");
 		break;
 	case (CL_INVALID_SAMPLER):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_SAMPLER", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_SAMPLER", "OpenCL error");
 		break;
 	case (CL_INVALID_BINARY):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_BINARY", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_BINARY", "OpenCL error");
 		break;
 	case (CL_INVALID_BUILD_OPTIONS):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_BUILD_OPTIONS", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_BUILD_OPTIONS", "OpenCL error");
 		break;
 	case (CL_INVALID_PROGRAM):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_PROGRAM", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_PROGRAM", "OpenCL error");
 		break;
 	case (CL_INVALID_PROGRAM_EXECUTABLE):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_PROGRAM_EXECUTABLE", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_PROGRAM_EXECUTABLE", "OpenCL error");
 		break;
 	case (CL_INVALID_KERNEL_NAME):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_KERNEL_NAME", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_KERNEL_NAME", "OpenCL error");
 		break;
 	case (CL_INVALID_KERNEL_DEFINITION):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_KERNEL_DEFINITION", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_KERNEL_DEFINITION", "OpenCL error");
 		break;
 	case (CL_INVALID_KERNEL):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_KERNEL", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_KERNEL", "OpenCL error");
 		break;
 	case (CL_INVALID_ARG_INDEX):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_ARG_INDEX", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_ARG_INDEX", "OpenCL error");
 		break;
 	case (CL_INVALID_ARG_VALUE):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_ARG_VALUE", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_ARG_VALUE", "OpenCL error");
 		break;
 	case (CL_INVALID_ARG_SIZE):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_ARG_SIZE", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_ARG_SIZE", "OpenCL error");
 		break;
 	case (CL_INVALID_KERNEL_ARGS):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_KERNEL_ARGS", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_KERNEL_ARGS", "OpenCL error");
 		break;
 	case (CL_INVALID_WORK_DIMENSION):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_WORK_DIMENSION", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_WORK_DIMENSION", "OpenCL error");
 		break;
 	case (CL_INVALID_WORK_GROUP_SIZE):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_WORK_GROUP_SIZE", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_WORK_GROUP_SIZE", "OpenCL error");
 		break;
 	case (CL_INVALID_WORK_ITEM_SIZE):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_WORK_ITEM_SIZE", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_WORK_ITEM_SIZE", "OpenCL error");
 		break;
 	case (CL_INVALID_GLOBAL_OFFSET):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_GLOBAL_OFFSET", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_GLOBAL_OFFSET", "OpenCL error");
 		break;
 	case (CL_INVALID_EVENT_WAIT_LIST):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_EVENT_WAIT_LIST", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_EVENT_WAIT_LIST", "OpenCL error");
 		break;
 	case (CL_INVALID_EVENT):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_EVENT", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_EVENT", "OpenCL error");
 		break;
 	case (CL_INVALID_OPERATION):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_OPERATION", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_OPERATION", "OpenCL error");
 		break;
 	case (CL_INVALID_GL_OBJECT):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_GL_OBJECT", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_GL_OBJECT", "OpenCL error");
 		break;
 	case (CL_INVALID_BUFFER_SIZE):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_BUFFER_SIZE", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_BUFFER_SIZE", "OpenCL error");
 		break;
 	case (CL_INVALID_MIP_LEVEL):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_MIP_LEVEL", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_MIP_LEVEL", "OpenCL error");
 		break;
 	case (CL_INVALID_GLOBAL_WORK_SIZE):
-		FatalError(__FILE__, __LINE__, "Error: CL_INVALID_GLOBAL_WORK_SIZE", "OpenCL error");
+		FatalError(file, line, "Error: CL_INVALID_GLOBAL_WORK_SIZE", "OpenCL error");
 		break;
 	default:
 		return false;

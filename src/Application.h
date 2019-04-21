@@ -12,6 +12,8 @@
 #include "Core/Scenes.h"
 #include "Core/Surface.h"
 
+#include "Core/WFTracer.h"
+
 #include "Materials/MaterialManager.h"
 
 #include "Utils/Messages.h"
@@ -50,17 +52,17 @@ class Application
 	 * x = true if scrolling right
 	 * y = true if scrolling up
 	 */
-	void MouseScroll(bool x, bool y);
+	void MouseScroll(glm::bvec2 xy);
 
-	void MouseScroll(float x, float y);
+	void MouseScroll(glm::vec2 xy);
 
 	void MouseUp(int button) { m_MouseKeyStatus[button] = false; }
 
 	void MouseDown(int button) { m_MouseKeyStatus[button] = true; }
 
-	void MouseMove(int x, int y);
+	void MouseMove(glm::ivec2 xy);
 
-	void MouseMove(float x, float y);
+	void MouseMove(glm::vec2 xy);
 
 	void KeyUp(int key) noexcept
 	{

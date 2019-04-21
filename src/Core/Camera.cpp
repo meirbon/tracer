@@ -76,6 +76,7 @@ void Camera::MoveRight(float movementSpeed) noexcept
 {
 	const vec3 axis = cross(m_ViewDirection, m_Up);
 	m_Origin += normalize(axis) * movementSpeed;
+	isDirty = true;
 }
 
 void Camera::RotateUp(float times) noexcept
@@ -85,6 +86,7 @@ void Camera::RotateUp(float times) noexcept
 	m_Pitch = fmax(fmin(m_Pitch, MAX_PITCH), MIN_PITCH);
 #endif
 	m_ViewDirection = getDirectionFromPitchAndYaw();
+	isDirty = true;
 }
 
 void Camera::RotateDown(float times) noexcept
@@ -94,18 +96,21 @@ void Camera::RotateDown(float times) noexcept
 	m_Pitch = fmax(fmin(m_Pitch, MAX_PITCH), MIN_PITCH);
 #endif
 	m_ViewDirection = getDirectionFromPitchAndYaw();
+	isDirty = true;
 }
 
 void Camera::RotateRight(float times) noexcept
 {
 	m_Yaw += times * m_RotationSpeed;
 	m_ViewDirection = getDirectionFromPitchAndYaw();
+	isDirty = true;
 }
 
 void Camera::RotateLeft(float times) noexcept
 {
 	m_Yaw -= times * m_RotationSpeed;
 	m_ViewDirection = getDirectionFromPitchAndYaw();
+	isDirty = true;
 }
 
 void Camera::ChangeFOV(float fov) noexcept
@@ -116,6 +121,7 @@ void Camera::ChangeFOV(float fov) noexcept
 		fov = 160.f;
 	m_FOV.x = m_FOV.y = fov;
 	m_FOV_Distance = tanf(glm::radians(fov * 0.5f));
+	isDirty = true;
 }
 
 const float &Camera::GetFOV() const noexcept { return m_FOV.x; }

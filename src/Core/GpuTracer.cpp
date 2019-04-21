@@ -71,16 +71,17 @@ GpuTracer::GpuTracer(prims::GpuTriangleList *objectList, gl::Texture *targetText
 	auto workSize = std::tuple<size_t, size_t, size_t>(w, h, 1);
 	auto localSize = std::tuple<size_t, size_t, size_t>(8, 8, 1);
 
-	generateRayKernel = new Kernel("programs/program.cl", "generateRays", workSize, localSize);
-	intersectRaysKernelRef = new Kernel("programs/program.cl", "intersectRays", workSize, localSize);
-	intersectRaysKernelMF = new Kernel("programs/program.cl", "intersectRaysMF", workSize, localSize);
-	intersectRaysKernelBVH = new Kernel("programs/program.cl", "intersectRaysBVH", workSize, localSize);
-	intersectRaysKernelOpt = new Kernel("programs/program.cl", "intersectRaysOpt", workSize, localSize);
-	drawKernel = new Kernel("programs/program.cl", "Draw", workSize, localSize);
+	//	generateRayKernel = new Kernel("programs/program.cl", "generateRays", workSize, localSize);
+	//	intersectRaysKernelRef = new Kernel("programs/program.cl", "intersectRays", workSize, localSize);
+	//	intersectRaysKernelMF = new Kernel("programs/program.cl", "intersectRaysMF", workSize, localSize);
+	//	intersectRaysKernelBVH = new Kernel("programs/program.cl", "intersectRaysBVH", workSize, localSize);
+	//	intersectRaysKernelOpt = new Kernel("programs/program.cl", "intersectRaysOpt", workSize, localSize);
+	//	drawKernel = new Kernel("programs/program.cl", "Draw", workSize, localSize);
 
-	wIntersectKernel = new Kernel("programs/program.cl", "intersect", workSize, localSize);
-	wShadeKernel = new Kernel("programs/program.cl", "shade", workSize, localSize);
-	wDrawKernel = new Kernel("programs/program.cl", "draw", workSize, localSize);
+	wGenerateRayKernel = new Kernel("programs/program.cl", "generate_wf", workSize, localSize);
+	wIntersectKernel = new Kernel("programs/program.cl", "intersect_mf", workSize, localSize);
+	wShadeKernel = new Kernel("programs/program.cl", "shade_mf", workSize, localSize);
+	wDrawKernel = new Kernel("programs/program.cl", "draw_mf", workSize, localSize);
 
 	this->Resize(targetTexture1);
 
@@ -92,6 +93,8 @@ GpuTracer::GpuTracer(prims::GpuTriangleList *objectList, gl::Texture *targetText
 	this->SetupSkybox(skyBox);
 
 	SetArguments();
+
+	colorBuffer->Clear();
 }
 
 GpuTracer::~GpuTracer()
@@ -99,10 +102,10 @@ GpuTracer::~GpuTracer()
 	delete m_BVHTree;
 	delete m_MBVHTree;
 	delete generateRayKernel;
-	delete intersectRaysKernelRef;
-	delete intersectRaysKernelMF;
-	delete intersectRaysKernelBVH;
-	delete intersectRaysKernelOpt;
+	//	delete intersectRaysKernelRef;
+	//	delete intersectRaysKernelMF;
+	//	delete intersectRaysKernelBVH;
+	//	delete intersectRaysKernelOpt;
 	delete outputBuffer;
 	delete raysBuffer;
 	delete BVHNodeBuffer;
@@ -127,43 +130,18 @@ GpuTracer::~GpuTracer()
 
 void GpuTracer::Render(Surface *)
 {
-	intersectRaysKernelRef->SetArgument(18, m_Width);
-	intersectRaysKernelRef->SetArgument(19, m_Height);
-	intersectRaysKernelMF->SetArgument(18, m_Width);
-	intersectRaysKernelMF->SetArgument(19, m_Height);
-	intersectRaysKernelBVH->SetArgument(18, m_Width);
-	intersectRaysKernelBVH->SetArgument(19, m_Height);
-	intersectRaysKernelOpt->SetArgument(18, m_Width);
-	intersectRaysKernelOpt->SetArgument(19, m_Height);
+	frame++;
+	if (frame <= 0)
+		frame = 1;
 
-	drawKernel->SetArgument(3, m_Samples);
-	wDrawKernel->SetArgument(4, m_Samples);
+	wGenerateRayKernel->SetArgument(8, frame);
+	wShadeKernel->SetArgument(20, frame);
+	Kernel::SyncQueue();
 
-	generateRayKernel->Run();
-#if WF
-	for (int i = 0; i < 8; i++)
-	{
-		wIntersectKernel->Run();
-		wShadeKernel->Run();
-	}
-	wDrawKernel->Run();
-#else
-	switch (m_Mode)
-	{
-	case (Mode::Reference):
-		intersectRaysKernelRef->Run();
-		break;
-	case (Mode::NEE_MIS):
-		intersectRaysKernelOpt->Run();
-		break;
-	case (Mode::ReferenceMicrofacet):
-	default:
-		intersectRaysKernelMF->Run();
-		break;
-	}
-	drawKernel->Run(outputBuffer);
-#endif
-
+	wGenerateRayKernel->Run(outputBuffer);
+	wIntersectKernel->Run();
+	wShadeKernel->Run();
+	wDrawKernel->Run(outputBuffer);
 	m_Samples++;
 
 	// update camera
@@ -174,15 +152,17 @@ void GpuTracer::Render(Surface *)
 	const glm::vec3 v = normalize(cross(u, m_Camera->GetViewDirection()));
 	const glm::vec3 horizontal = u * m_Camera->GetFOVDistance() * m_Camera->GetAspectRatio();
 	const glm::vec3 vertical = v * m_Camera->GetFOVDistance();
-
-	generateRayKernel->SetArgument(3, vec4(horizontal, 1.0f));
-	generateRayKernel->SetArgument(4, vec4(vertical, 1.0f));
+	wGenerateRayKernel->SetArgument(4, vec4(horizontal, 1.0f));
+	wGenerateRayKernel->SetArgument(5, vec4(vertical, 1.0f));
 }
 
 void GpuTracer::Reset()
 {
 	Kernel::SyncQueue();
+	colorBuffer->Clear();
+	Kernel::SyncQueue();
 	m_Samples = 0;
+	frame = 1;
 }
 
 void GpuTracer::Resize(Texture *newOutput)
@@ -209,25 +189,25 @@ void GpuTracer::Resize(Texture *newOutput)
 
 	SetupCamera();
 
-	const auto roundedWidth = RoundToPowerOf2(width);
-	const auto roundedHeight = RoundToPowerOf2(height);
+	//	const auto roundedWidth = RoundToPowerOf2(width);
+	//	const auto roundedHeight = RoundToPowerOf2(height);
 
 	// set up textures
 	outputBuffer = new Buffer(newOutput, BufferType::TARGET);
 
 	// create buffer to store primary ray
-	raysBuffer = new Buffer(width * height * 48);
+	raysBuffer = new Buffer(width * height * 128);
 
 	// create buffers to store colors for accumulation
 	previousColorBuffer = new Buffer(width * height * sizeof(glm::vec4));
 	colorBuffer = new Buffer(width * height * sizeof(glm::vec4));
 
-	generateRayKernel->SetWorkSize(roundedWidth, roundedHeight, 1);
-	intersectRaysKernelRef->SetWorkSize(roundedWidth, roundedHeight, 1);
-	intersectRaysKernelMF->SetWorkSize(roundedWidth, roundedHeight, 1);
-	intersectRaysKernelBVH->SetWorkSize(roundedWidth, roundedHeight, 1);
-	intersectRaysKernelOpt->SetWorkSize(roundedWidth, roundedHeight, 1);
-	drawKernel->SetWorkSize(roundedWidth, roundedHeight, 1);
+	//	generateRayKernel->SetWorkSize(roundedWidth, roundedHeight, 1);
+	//	intersectRaysKernelRef->SetWorkSize(roundedWidth, roundedHeight, 1);
+	//	intersectRaysKernelMF->SetWorkSize(roundedWidth, roundedHeight, 1);
+	//	intersectRaysKernelBVH->SetWorkSize(roundedWidth, roundedHeight, 1);
+	//	intersectRaysKernelOpt->SetWorkSize(roundedWidth, roundedHeight, 1);
+	//	drawKernel->SetWorkSize(roundedWidth, roundedHeight, 1);
 
 	SetupSeeds(width, height);
 
@@ -403,110 +383,119 @@ void GpuTracer::SetupSkybox(Surface *skyBox)
 void GpuTracer::SetArguments()
 {
 	// set initial arguments for kernels
-	generateRayKernel->SetArgument(0, raysBuffer);
-	generateRayKernel->SetArgument(1, cameraBuffer);
-	generateRayKernel->SetArgument(2, seedBuffer);
+	//	generateRayKernel->SetArgument(0, raysBuffer);
+	//	generateRayKernel->SetArgument(1, cameraBuffer);
+	//	generateRayKernel->SetArgument(2, seedBuffer);
 
 	const glm::vec3 u = normalize(cross(m_Camera->GetViewDirection(), vec3(0, 1, 0)));
 	const glm::vec3 v = normalize(cross(u, m_Camera->GetViewDirection()));
 	const glm::vec3 horizontal = u * m_Camera->GetFOVDistance() * m_Camera->GetAspectRatio();
 	const glm::vec3 vertical = v * m_Camera->GetFOVDistance();
 
-	generateRayKernel->SetArgument(3, vec4(horizontal, 1.0f));
-	generateRayKernel->SetArgument(4, vec4(vertical, 1.0f));
-	generateRayKernel->SetArgument(5, m_Width);
-	generateRayKernel->SetArgument(6, m_Height);
+	//	generateRayKernel->SetArgument(3, vec4(horizontal, 1.0f));
+	//	generateRayKernel->SetArgument(4, vec4(vertical, 1.0f));
+	//	generateRayKernel->SetArgument(5, m_Width);
+	//	generateRayKernel->SetArgument(6, m_Height);
 
-	intersectRaysKernelRef->SetArgument(0, raysBuffer);
-	intersectRaysKernelRef->SetArgument(1, materialBuffer);
-	intersectRaysKernelRef->SetArgument(2, triangleBuffer);
-	intersectRaysKernelRef->SetArgument(3, BVHNodeBuffer);
-	intersectRaysKernelRef->SetArgument(4, MBVHNodeBuffer);
-	intersectRaysKernelRef->SetArgument(5, primitiveIndicesBuffer);
-	intersectRaysKernelRef->SetArgument(6, seedBuffer);
-	intersectRaysKernelRef->SetArgument(7, colorBuffer);
-	intersectRaysKernelRef->SetArgument(8, lightIndices);
-	intersectRaysKernelRef->SetArgument(9, lightLotteryTickets);
-	intersectRaysKernelRef->SetArgument(10, textureBuffer);
-	intersectRaysKernelRef->SetArgument(11, textureInfoBuffer);
-	intersectRaysKernelRef->SetArgument(12, skyDome);
-	intersectRaysKernelRef->SetArgument(13, skyDomeInfo);
-	intersectRaysKernelRef->SetArgument(14, microfacetBuffer);
-	intersectRaysKernelRef->SetArgument(15, m_HasSkybox);
-	intersectRaysKernelRef->SetArgument(16, lightArea);
-	intersectRaysKernelRef->SetArgument(17, lightCount);
-	intersectRaysKernelRef->SetArgument(18, m_Width);
-	intersectRaysKernelRef->SetArgument(19, m_Height);
+	//	intersectRaysKernelRef->SetArgument(0, raysBuffer);
+	//	intersectRaysKernelRef->SetArgument(1, materialBuffer);
+	//	intersectRaysKernelRef->SetArgument(2, triangleBuffer);
+	//	intersectRaysKernelRef->SetArgument(3, BVHNodeBuffer);
+	//	intersectRaysKernelRef->SetArgument(4, MBVHNodeBuffer);
+	//	intersectRaysKernelRef->SetArgument(5, primitiveIndicesBuffer);
+	//	intersectRaysKernelRef->SetArgument(6, seedBuffer);
+	//	intersectRaysKernelRef->SetArgument(7, colorBuffer);
+	//	intersectRaysKernelRef->SetArgument(8, lightIndices);
+	//	intersectRaysKernelRef->SetArgument(9, lightLotteryTickets);
+	//	intersectRaysKernelRef->SetArgument(10, textureBuffer);
+	//	intersectRaysKernelRef->SetArgument(11, textureInfoBuffer);
+	//	intersectRaysKernelRef->SetArgument(12, skyDome);
+	//	intersectRaysKernelRef->SetArgument(13, skyDomeInfo);
+	//	intersectRaysKernelRef->SetArgument(14, microfacetBuffer);
+	//	intersectRaysKernelRef->SetArgument(15, m_HasSkybox);
+	//	intersectRaysKernelRef->SetArgument(16, lightArea);
+	//	intersectRaysKernelRef->SetArgument(17, lightCount);
+	//	intersectRaysKernelRef->SetArgument(18, m_Width);
+	//	intersectRaysKernelRef->SetArgument(19, m_Height);
+	//
+	//	intersectRaysKernelOpt->SetArgument(0, raysBuffer);
+	//	intersectRaysKernelOpt->SetArgument(1, materialBuffer);
+	//	intersectRaysKernelOpt->SetArgument(2, triangleBuffer);
+	//	intersectRaysKernelOpt->SetArgument(3, BVHNodeBuffer);
+	//	intersectRaysKernelOpt->SetArgument(4, MBVHNodeBuffer);
+	//	intersectRaysKernelOpt->SetArgument(5, primitiveIndicesBuffer);
+	//	intersectRaysKernelOpt->SetArgument(6, seedBuffer);
+	//	intersectRaysKernelOpt->SetArgument(7, colorBuffer);
+	//	intersectRaysKernelOpt->SetArgument(8, lightIndices);
+	//	intersectRaysKernelOpt->SetArgument(9, lightLotteryTickets);
+	//	intersectRaysKernelOpt->SetArgument(10, textureBuffer);
+	//	intersectRaysKernelOpt->SetArgument(11, textureInfoBuffer);
+	//	intersectRaysKernelOpt->SetArgument(12, skyDome);
+	//	intersectRaysKernelOpt->SetArgument(13, skyDomeInfo);
+	//	intersectRaysKernelOpt->SetArgument(14, microfacetBuffer);
+	//	intersectRaysKernelOpt->SetArgument(15, m_HasSkybox);
+	//	intersectRaysKernelOpt->SetArgument(16, lightArea);
+	//	intersectRaysKernelOpt->SetArgument(17, lightCount);
+	//	intersectRaysKernelOpt->SetArgument(18, m_Width);
+	//	intersectRaysKernelOpt->SetArgument(19, m_Height);
+	//
+	//	intersectRaysKernelBVH->SetArgument(0, raysBuffer);
+	//	intersectRaysKernelBVH->SetArgument(1, materialBuffer);
+	//	intersectRaysKernelBVH->SetArgument(2, triangleBuffer);
+	//	intersectRaysKernelBVH->SetArgument(3, BVHNodeBuffer);
+	//	intersectRaysKernelBVH->SetArgument(4, MBVHNodeBuffer);
+	//	intersectRaysKernelBVH->SetArgument(5, primitiveIndicesBuffer);
+	//	intersectRaysKernelBVH->SetArgument(6, seedBuffer);
+	//	intersectRaysKernelBVH->SetArgument(7, colorBuffer);
+	//	intersectRaysKernelBVH->SetArgument(8, lightIndices);
+	//	intersectRaysKernelBVH->SetArgument(9, lightLotteryTickets);
+	//	intersectRaysKernelBVH->SetArgument(10, textureBuffer);
+	//	intersectRaysKernelBVH->SetArgument(11, textureInfoBuffer);
+	//	intersectRaysKernelBVH->SetArgument(12, skyDome);
+	//	intersectRaysKernelBVH->SetArgument(13, skyDomeInfo);
+	//	intersectRaysKernelBVH->SetArgument(14, microfacetBuffer);
+	//	intersectRaysKernelBVH->SetArgument(15, m_HasSkybox);
+	//	intersectRaysKernelBVH->SetArgument(16, lightArea);
+	//	intersectRaysKernelBVH->SetArgument(17, lightCount);
+	//	intersectRaysKernelBVH->SetArgument(18, m_Width);
+	//	intersectRaysKernelBVH->SetArgument(19, m_Height);
+	//
+	//	intersectRaysKernelMF->SetArgument(0, raysBuffer);
+	//	intersectRaysKernelMF->SetArgument(1, materialBuffer);
+	//	intersectRaysKernelMF->SetArgument(2, triangleBuffer);
+	//	intersectRaysKernelMF->SetArgument(3, BVHNodeBuffer);
+	//	intersectRaysKernelMF->SetArgument(4, MBVHNodeBuffer);
+	//	intersectRaysKernelMF->SetArgument(5, primitiveIndicesBuffer);
+	//	intersectRaysKernelMF->SetArgument(6, seedBuffer);
+	//	intersectRaysKernelMF->SetArgument(7, colorBuffer);
+	//	intersectRaysKernelMF->SetArgument(8, lightIndices);
+	//	intersectRaysKernelMF->SetArgument(9, lightLotteryTickets);
+	//	intersectRaysKernelMF->SetArgument(10, textureBuffer);
+	//	intersectRaysKernelMF->SetArgument(11, textureInfoBuffer);
+	//	intersectRaysKernelMF->SetArgument(12, skyDome);
+	//	intersectRaysKernelMF->SetArgument(13, skyDomeInfo);
+	//	intersectRaysKernelMF->SetArgument(14, microfacetBuffer);
+	//	intersectRaysKernelMF->SetArgument(15, m_HasSkybox);
+	//	intersectRaysKernelMF->SetArgument(16, lightArea);
+	//	intersectRaysKernelMF->SetArgument(17, lightCount);
+	//	intersectRaysKernelMF->SetArgument(18, m_Width);
+	//	intersectRaysKernelMF->SetArgument(19, m_Height);
 
-	intersectRaysKernelOpt->SetArgument(0, raysBuffer);
-	intersectRaysKernelOpt->SetArgument(1, materialBuffer);
-	intersectRaysKernelOpt->SetArgument(2, triangleBuffer);
-	intersectRaysKernelOpt->SetArgument(3, BVHNodeBuffer);
-	intersectRaysKernelOpt->SetArgument(4, MBVHNodeBuffer);
-	intersectRaysKernelOpt->SetArgument(5, primitiveIndicesBuffer);
-	intersectRaysKernelOpt->SetArgument(6, seedBuffer);
-	intersectRaysKernelOpt->SetArgument(7, colorBuffer);
-	intersectRaysKernelOpt->SetArgument(8, lightIndices);
-	intersectRaysKernelOpt->SetArgument(9, lightLotteryTickets);
-	intersectRaysKernelOpt->SetArgument(10, textureBuffer);
-	intersectRaysKernelOpt->SetArgument(11, textureInfoBuffer);
-	intersectRaysKernelOpt->SetArgument(12, skyDome);
-	intersectRaysKernelOpt->SetArgument(13, skyDomeInfo);
-	intersectRaysKernelOpt->SetArgument(14, microfacetBuffer);
-	intersectRaysKernelOpt->SetArgument(15, m_HasSkybox);
-	intersectRaysKernelOpt->SetArgument(16, lightArea);
-	intersectRaysKernelOpt->SetArgument(17, lightCount);
-	intersectRaysKernelOpt->SetArgument(18, m_Width);
-	intersectRaysKernelOpt->SetArgument(19, m_Height);
+	//	drawKernel->SetArgument(0, outputBuffer);
+	//	drawKernel->SetArgument(1, previousColorBuffer);
+	//	drawKernel->SetArgument(2, colorBuffer);
+	//	drawKernel->SetArgument(3, m_Samples);
+	//	drawKernel->SetArgument(4, m_Width);
+	//	drawKernel->SetArgument(5, m_Height);
 
-	intersectRaysKernelBVH->SetArgument(0, raysBuffer);
-	intersectRaysKernelBVH->SetArgument(1, materialBuffer);
-	intersectRaysKernelBVH->SetArgument(2, triangleBuffer);
-	intersectRaysKernelBVH->SetArgument(3, BVHNodeBuffer);
-	intersectRaysKernelBVH->SetArgument(4, MBVHNodeBuffer);
-	intersectRaysKernelBVH->SetArgument(5, primitiveIndicesBuffer);
-	intersectRaysKernelBVH->SetArgument(6, seedBuffer);
-	intersectRaysKernelBVH->SetArgument(7, colorBuffer);
-	intersectRaysKernelBVH->SetArgument(8, lightIndices);
-	intersectRaysKernelBVH->SetArgument(9, lightLotteryTickets);
-	intersectRaysKernelBVH->SetArgument(10, textureBuffer);
-	intersectRaysKernelBVH->SetArgument(11, textureInfoBuffer);
-	intersectRaysKernelBVH->SetArgument(12, skyDome);
-	intersectRaysKernelBVH->SetArgument(13, skyDomeInfo);
-	intersectRaysKernelBVH->SetArgument(14, microfacetBuffer);
-	intersectRaysKernelBVH->SetArgument(15, m_HasSkybox);
-	intersectRaysKernelBVH->SetArgument(16, lightArea);
-	intersectRaysKernelBVH->SetArgument(17, lightCount);
-	intersectRaysKernelBVH->SetArgument(18, m_Width);
-	intersectRaysKernelBVH->SetArgument(19, m_Height);
-
-	intersectRaysKernelMF->SetArgument(0, raysBuffer);
-	intersectRaysKernelMF->SetArgument(1, materialBuffer);
-	intersectRaysKernelMF->SetArgument(2, triangleBuffer);
-	intersectRaysKernelMF->SetArgument(3, BVHNodeBuffer);
-	intersectRaysKernelMF->SetArgument(4, MBVHNodeBuffer);
-	intersectRaysKernelMF->SetArgument(5, primitiveIndicesBuffer);
-	intersectRaysKernelMF->SetArgument(6, seedBuffer);
-	intersectRaysKernelMF->SetArgument(7, colorBuffer);
-	intersectRaysKernelMF->SetArgument(8, lightIndices);
-	intersectRaysKernelMF->SetArgument(9, lightLotteryTickets);
-	intersectRaysKernelMF->SetArgument(10, textureBuffer);
-	intersectRaysKernelMF->SetArgument(11, textureInfoBuffer);
-	intersectRaysKernelMF->SetArgument(12, skyDome);
-	intersectRaysKernelMF->SetArgument(13, skyDomeInfo);
-	intersectRaysKernelMF->SetArgument(14, microfacetBuffer);
-	intersectRaysKernelMF->SetArgument(15, m_HasSkybox);
-	intersectRaysKernelMF->SetArgument(16, lightArea);
-	intersectRaysKernelMF->SetArgument(17, lightCount);
-	intersectRaysKernelMF->SetArgument(18, m_Width);
-	intersectRaysKernelMF->SetArgument(19, m_Height);
-
-	drawKernel->SetArgument(0, outputBuffer);
-	drawKernel->SetArgument(1, previousColorBuffer);
-	drawKernel->SetArgument(2, colorBuffer);
-	drawKernel->SetArgument(3, m_Samples);
-	drawKernel->SetArgument(4, m_Width);
-	drawKernel->SetArgument(5, m_Height);
+	wGenerateRayKernel->SetArgument(0, outputBuffer);
+	wGenerateRayKernel->SetArgument(1, colorBuffer);
+	wGenerateRayKernel->SetArgument(2, raysBuffer);
+	wGenerateRayKernel->SetArgument(3, cameraBuffer);
+	wGenerateRayKernel->SetArgument(4, vec4(horizontal, 1.0f));
+	wGenerateRayKernel->SetArgument(5, vec4(vertical, 1.0f));
+	wGenerateRayKernel->SetArgument(6, m_Width);
+	wGenerateRayKernel->SetArgument(7, m_Height);
 
 	wIntersectKernel->SetArgument(0, raysBuffer);
 	wIntersectKernel->SetArgument(1, materialBuffer);
@@ -551,11 +540,10 @@ void GpuTracer::SetArguments()
 	wShadeKernel->SetArgument(19, m_Height);
 
 	wDrawKernel->SetArgument(0, outputBuffer);
-	wDrawKernel->SetArgument(1, raysBuffer);
-	wDrawKernel->SetArgument(2, previousColorBuffer);
-	wDrawKernel->SetArgument(3, colorBuffer);
-	wDrawKernel->SetArgument(4, m_Samples);
-	wDrawKernel->SetArgument(5, m_Width);
-	wDrawKernel->SetArgument(6, m_Height);
+	wDrawKernel->SetArgument(1, previousColorBuffer);
+	wDrawKernel->SetArgument(2, colorBuffer);
+	wDrawKernel->SetArgument(3, m_Samples);
+	wDrawKernel->SetArgument(4, m_Width);
+	wDrawKernel->SetArgument(5, m_Height);
 }
 } // namespace core

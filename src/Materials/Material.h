@@ -78,4 +78,53 @@ struct Material
 	inline void MakeLight() { this->flags = LIGHT_MASK; }
 
 	inline bool IsLight() const { return (this->flags & LIGHT_MASK) == LIGHT_MASK; }
+
+	static Material lambertian(glm::vec3 albedo, int diffuseTex = -1, int normalTex = -1, int maskTex = -1,
+							   int displaceTex = -1, float refractionIdx = 1.0f)
+	{
+		Material mat;
+		mat.albedo = albedo;
+		mat.refractionIndex = refractionIdx;
+		mat.textureIdx = diffuseTex;
+		mat.shininess = 1.0f;
+		// mat.normalTex = normalTex;
+		// mat.maskTex = maskTex;
+		// mat.displaceTex = displaceTex;
+		// mat.type = Lambertian;
+		return mat;
+	}
+
+	static Material light(glm::vec3 emission)
+	{
+		Material mat;
+		mat.refractionIndex = 1.0f;
+		mat.textureIdx = -1;
+		mat.MakeLight();
+		mat.emission = glm::max(emission, glm::vec3(0.01f));
+		mat.absorption = glm::vec3(0.0f);
+		return mat;
+	}
+
+	static Material specular(glm::vec3 albedo, float refractionIdx)
+	{
+		Material mat;
+		mat.diffuse = 0.0f;
+		mat.albedo = albedo;
+		mat.refractionIndex = refractionIdx;
+		mat.shininess = 10000.0f;
+		return mat;
+	}
+
+	static Material fresnel(glm::vec3 albedo, float refractIdx, glm::vec3 absorption = glm::vec3(0.0f),
+							float roughness = 0.0f, int diffuseTex = -1, int normalTex = -1)
+	{
+		Material mat;
+		mat.albedo = albedo;
+		mat.refractionIndex = refractIdx;
+		mat.textureIdx = diffuseTex;
+		mat.absorption = absorption;
+		mat.shininess = glm::max(roughness, 2.0f);
+		mat.diffuse = 0.0f;
+		return mat;
+	}
 };

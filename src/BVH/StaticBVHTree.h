@@ -24,6 +24,7 @@ class StaticBVHTree : public prims::WorldScene
 	friend class MBVHNode;
 	friend class MBVHTree;
 
+	explicit StaticBVHTree(std::vector<AABB> aabbs, BVHType type = SAH, ctpl::ThreadPool *pool = nullptr);
 	explicit StaticBVHTree(prims::SceneObjectList *objectList, BVHType type = SAH, ctpl::ThreadPool *pool = nullptr);
 	explicit StaticBVHTree(prims::GpuTriangleList *objectList, BVHType type = SAH, ctpl::ThreadPool *pool = nullptr);
 	StaticBVHTree() = default;

@@ -277,7 +277,7 @@ void Micromaterials(prims::GpuTriangleList *objectList)
 		mManager->AddMaterial(Material(0.01f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
 	const unsigned int whittedPlaneYellow = mManager->AddMaterial(Material(1, yellow, 4, 1.f, 0.f, vec3(0.f)));
 	const unsigned int whittedPlaneRed = mManager->AddMaterial(Material(0.01f, red, 4, 1.f, 0.f, vec3(0.f)));
-	const unsigned int lightMat = mManager->AddMaterial(Material(vec3(10.f), .5f));
+	const unsigned int lightMat = mManager->AddMaterial(Material(vec3(1.f), .5f));
 
 	prims::Load("models/sphere.obj", sphereMaterialIdx1, vec3(-5.f, -1.1f, -4.5f), .05f, objectList);
 	prims::Load("models/sphere.obj", sphereMaterialIdx2, vec3(-2.5f, -1.1f, -4.5f), .05f, objectList);
@@ -428,4 +428,53 @@ void Sponza(prims::GpuTriangleList *objectList)
 
 	const unsigned int sponza = mManager->AddMaterial(Material(1, vec3(1.f, .95f, .8f), 4, 1.f, 0.f, vec3(0.f)));
 	prims::Load("models/sponza/sponza.obj", sponza, vec3(0.f, 0.f, 0.f), .2f, objectList);
+}
+
+void Micromaterials(TriangleList *objectList)
+{
+	auto *mManager = MaterialManager::GetInstance();
+
+	const vec3 yellow = vec3(float(0xFC) / 255.99f, float(0xEE) / 255.99f, float(0x0E) / 255.59f);
+	const vec3 red = vec3(float(0xE0) / 255.99f, float(0x25) / 255.99f, float(0x0B) / 255.59f);
+	const unsigned int sphereMaterialIdx1 =
+		mManager->AddMaterial(Material(1.f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
+	const unsigned int sphereMaterialIdx2 =
+		mManager->AddMaterial(Material(0.5f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
+	const unsigned int sphereMaterialIdx3 =
+		mManager->AddMaterial(Material(0.2f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
+	const unsigned int sphereMaterialIdx4 =
+		mManager->AddMaterial(Material(0.1f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
+	const unsigned int sphereMaterialIdx5 =
+		mManager->AddMaterial(Material(0.01f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
+	const unsigned int whittedPlaneYellow = mManager->AddMaterial(Material(1, yellow, 4, 1.f, 0.f, vec3(0.f)));
+	const unsigned int whittedPlaneRed = mManager->AddMaterial(Material(0.01f, red, 4, 1.f, 0.f, vec3(0.f)));
+	const unsigned int lightMat = mManager->AddMaterial(Material(vec3(1.f), .5f));
+
+	objectList->loadModel("models/sphere.obj", 1.0f, translate(mat4(1.0f), vec3(-5.f, -1.1f, -4.5f)),
+						  sphereMaterialIdx1);
+	objectList->loadModel("models/sphere.obj", 1.0f, translate(mat4(1.0f), vec3(-2.5f, -1.1f, -4.5f)),
+						  sphereMaterialIdx2);
+	objectList->loadModel("models/sphere.obj", 1.0f, translate(mat4(1.0f), vec3(0.0f, -1.1f, -4.5f)),
+						  sphereMaterialIdx3);
+	objectList->loadModel("models/sphere.obj", 1.0f, translate(mat4(1.0f), vec3(2.5f, -1.1f, -4.5f)),
+						  sphereMaterialIdx4);
+	objectList->loadModel("models/sphere.obj", 1.0f, translate(mat4(1.0f), vec3(5.0f, -1.1f, -4.5f)),
+						  sphereMaterialIdx5);
+
+	prims::TrianglePlane::create(vec3(4.0f, 6.0f, 1.0f), vec3(-4.0f, 6.0f, 1.0f), vec3(4.0f, 6.0f, -3.0f), lightMat,
+								 objectList);
+
+	int zIdx = 0;
+	for (int z = -10; z < 10; z++)
+	{
+		int idx = zIdx;
+		for (int x = -20; x < 2; x++)
+		{
+			prims::TrianglePlane::create(vec3(float(z), -2.5f, float(x)), vec3(float(z - 1) + EPSILON, -2.5f, float(x)),
+										 vec3(float(z), -2.5f, float(x - 1) + EPSILON),
+										 idx ? whittedPlaneRed : whittedPlaneYellow, objectList);
+			idx = (idx + 1) % 2;
+		}
+		zIdx = (zIdx + 1) % 2;
+	}
 }

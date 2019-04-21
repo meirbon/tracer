@@ -185,4 +185,20 @@ glm::vec2 TrianglePlane::GetTexCoords(const glm::vec3 &hitPoint) const
 
 	return t0;
 }
+
+void TrianglePlane::create(vec3 topRight, vec3 topLeft, vec3 bottomRight, uint matIndex, TriangleList *tList)
+{
+	// find top-left point
+	const float minX = fmin(topRight.x, fmin(topLeft.x, bottomRight.x));
+	const float minY = fmin(topRight.y, fmin(topLeft.y, bottomRight.y));
+	const float minZ = fmin(topRight.z, fmin(topLeft.z, bottomRight.z));
+
+	// invert it to find lower-right point
+	const vec3 p3 = vec3(minX, minY, minZ);
+
+	const auto normal = -normalize(cross(topLeft - topRight, bottomRight - topRight));
+	tList->addTriangle(topRight, topLeft, bottomRight, normal, normal, normal, matIndex, vec2(0, 0), vec2(1, 0),
+					   vec2(0, 1));
+	tList->addTriangle(bottomRight, topLeft, p3, normal, normal, normal, matIndex, vec2(0, 1), vec2(1, 0), vec2(1, 1));
+}
 } // namespace prims

@@ -2,11 +2,10 @@
 
 #include "Shared.h"
 #include "Utils/GLFWWindow.h"
-#include "Utils/SDLWindow.h"
 #include "Utils/Timer.h"
 
 constexpr int SCRWIDTH = 1024;
-constexpr int SCRHEIGHT = 768;
+constexpr int SCRHEIGHT = 512;
 
 using namespace utils;
 
@@ -14,7 +13,7 @@ using namespace utils;
 
 int main(int argc, char *argv[])
 {
-	printf("Application started.\n");
+	std::cout << "Application started." << std::endl;
 
 	bool oFullScreen = false;
 	RendererType rendererType = CPU;
@@ -35,46 +34,10 @@ int main(int argc, char *argv[])
 
 	int exitApp = 0;
 	const char *f = file.c_str();
-#if USE_SDL
-	auto window = utils::SDLWindow("Tracer", SCRWIDTH, SCRHEIGHT, oFullScreen);
-#else
 	auto window = utils::GLFWWindow("Tracer", SCRWIDTH, SCRHEIGHT, oFullScreen);
-#endif
 	auto app = new Application(&window, rendererType, SCRWIDTH, SCRHEIGHT, file.empty() ? nullptr : f);
 
 	Timer t, drawTimer;
-#if USE_SDL
-	window.SetEventCallback([&exitApp, &app](SDL_Event event) {
-		switch (event.type)
-		{
-		case SDL_QUIT:
-			exitApp = 1;
-			break;
-		case SDL_KEYDOWN:
-			if (event.key.keysym.sym == SDLK_ESCAPE)
-				exitApp = 1;
-			app->KeyDown(event.key.keysym.scancode);
-			break;
-		case SDL_KEYUP:
-			app->KeyUp(event.key.keysym.scancode);
-			break;
-		case SDL_MOUSEMOTION:
-			app->MouseMove(event.motion.xrel, event.motion.yrel);
-			break;
-		case SDL_MOUSEBUTTONUP:
-			app->MouseUp(event.button.button);
-			break;
-		case SDL_MOUSEBUTTONDOWN:
-			app->MouseDown(event.button.button);
-			break;
-		case SDL_MOUSEWHEEL:
-			app->MouseScroll(event.wheel.x > 0, event.wheel.y > 0);
-			break;
-		default:
-			break;
-		}
-	});
-#else
 	window.SetEventCallback([&exitApp, &app](utils::Event event) {
 		switch (event.type)
 		{
@@ -109,13 +72,12 @@ int main(int argc, char *argv[])
 			else if (event.state == KEY_RELEASED)
 				app->MouseUp(event.key);
 			else if (event.state == MOUSE_MOVE)
-				app->MouseMove(event.x, event.y);
+				app->MouseMove(vec2{event.x, event.y});
 			else if (event.state == MOUSE_SCROLL)
-				app->MouseScroll(event.x, event.y);
+				app->MouseScroll(vec2{event.x, event.y});
 			break;
 		}
 	});
-#endif
 
 	while (!exitApp)
 	{

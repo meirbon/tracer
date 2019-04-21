@@ -4,6 +4,7 @@
 
 #include "Primitives/SceneObjectList.h"
 #include "Primitives/GpuTriangleList.h"
+#include "Primitives/TriangleList.h"
 
 void texturedScene(prims::SceneObjectList *objectList);
 void whittedScene(prims::SceneObjectList *objectList);
@@ -29,3 +30,5 @@ void CBoxWater(prims::GpuTriangleList *objectList);
 void teapotScene(prims::GpuTriangleList *objectList);
 void Dragon(prims::GpuTriangleList *objectList);
 void Sponza(prims::GpuTriangleList *objectList);
+
+void Micromaterials(TriangleList *objectList);

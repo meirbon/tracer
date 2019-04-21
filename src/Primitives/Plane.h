@@ -2,9 +2,10 @@
 
 #include "Core/Ray.h"
 #include "Materials/Material.h"
-#include "SceneObject.h"
-#include "SceneObjectList.h"
-#include "Triangle.h"
+#include "Primitives/Triangle.h"
+#include "Primitives/TriangleList.h"
+#include "Primitives/SceneObject.h"
+#include "Primitives/SceneObjectList.h"
 
 namespace prims
 {
@@ -44,6 +45,8 @@ class TrianglePlane : public SceneObject
 				  SceneObjectList *objectList);
 	TrianglePlane(glm::vec3 topRight, glm::vec3 topLeft, glm::vec3 bottomRight, uint matIndex,
 				  GpuTriangleList *objectList);
+
+	static void create(vec3 topRight, vec3 topLeft, vec3 bottomRight, uint matIndex, TriangleList *tList);
 	~TrianglePlane() override = default;
 
 	glm::vec3 m_Normal{};

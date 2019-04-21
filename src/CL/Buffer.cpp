@@ -45,7 +45,7 @@ Buffer::Buffer(unsigned int size, void *ptr)
 	}
 }
 
-Buffer::Buffer(gl::Texture *texture, cl::BufferType t)
+Buffer::Buffer(gl::Texture *texture, cl::BufferType t) : m_Type(DEFAULT)
 {
 	m_TextureID = texture->GetID(); // representing texture N
 	m_Size = texture->GetWidth() * texture->GetHeight() * sizeof(unsigned int);
