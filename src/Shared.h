@@ -1,4 +1,4 @@
-#define EPSILON (0.00001f)
+#define EPSILON (0.0001f)
 #define MBVH 1
 
 #ifndef PI

@@ -54,3 +54,5 @@ void MaterialManager::Delete()
 	instance = nullptr;
 	delete pointer;
 }
+
+MaterialManager::MaterialManager() { AddMaterial(Material::lambertian(glm::vec3(1.0f))); }

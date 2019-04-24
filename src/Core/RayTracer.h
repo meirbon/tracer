@@ -14,7 +14,7 @@ class RayTracer : public Renderer
 {
   public:
 	RayTracer() = default;
-	~RayTracer();
+	~RayTracer() override;
 	void Render(Surface *output) override;
 
 	RayTracer(prims::WorldScene *Scene, glm::vec3 backgroundColor, glm::vec3 ambientColor, uint maxRecursionDepth,
@@ -31,8 +31,6 @@ class RayTracer : public Renderer
 	void Resize(gl::Texture *newOutput) override;
 
 	inline void Reset() override { m_Samples = 0; }
-
-	inline void SetMode(std::string) override{};
 
   private:
 	glm::vec3 backGroundColor, ambientColor;

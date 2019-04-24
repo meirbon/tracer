@@ -36,6 +36,8 @@ Surface::Surface(const char *file) : m_Buffer(nullptr), m_Width(0), m_Height(0)
 
 void Surface::LoadImage(const char *file)
 {
+	using namespace glm;
+
 	FREE_IMAGE_FORMAT fif = FIF_UNKNOWN;
 	fif = FreeImage_GetFileType(file, 0);
 	if (fif == FIF_UNKNOWN)
@@ -50,7 +52,7 @@ void Surface::LoadImage(const char *file)
 	m_Width = m_Pitch = FreeImage_GetWidth(dib);
 	m_Height = FreeImage_GetHeight(dib);
 	m_Buffer = new Pixel[m_Width * m_Height];
-	m_TexBuffer = new glm::vec4[m_Width * m_Height];
+	m_TexBuffer.reserve(m_Width * m_Height);
 	m_Flags = OWNER;
 
 	for (auto y = 0; y < m_Height; y++)
@@ -59,12 +61,11 @@ void Surface::LoadImage(const char *file)
 		{
 			RGBQUAD quad;
 			FreeImage_GetPixelColor(dib, x, y, &quad);
-			const unsigned int red = (unsigned int)(quad.rgbRed);
-			const unsigned int green = (unsigned int)(quad.rgbGreen);
-			const unsigned int blue = (unsigned int)(quad.rgbBlue);
+			const auto red = (uint)(quad.rgbRed);
+			const auto green = (uint)(quad.rgbGreen);
+			const auto blue = (uint)(quad.rgbBlue);
 			m_Buffer[x + y * m_Width] = (red << 0) | (green << 8) | (blue << 16);
-			m_TexBuffer[x + y * m_Width] =
-				glm::vec4(float(red) / 255.0f, float(green) / 255.0f, float(blue) / 255.0f, 1.0f);
+			m_TexBuffer.emplace_back(float(blue) / 255.99f, float(green) / 255.99f, float(red) / 255.99f, 1.0f);
 		}
 	}
 
@@ -74,11 +75,7 @@ void Surface::LoadImage(const char *file)
 Surface::~Surface()
 {
 	if (m_Flags & OWNER)
-	{
 		delete[] m_Buffer;
-	}
-
-	delete m_TexBuffer;
 }
 
 void Surface::SetBuffer(Pixel *buffer)
@@ -409,7 +406,7 @@ void Surface::ScaleColor(unsigned int scale)
 	}
 }
 
-glm::vec4 *Surface::GetTextureBuffer() { return m_TexBuffer; }
+glm::vec4 *Surface::GetTextureBuffer() { return m_TexBuffer.data(); }
 
 Sprite::Sprite(Surface *output, unsigned int numFrames)
 	: m_Width(output->GetWidth() / numFrames), m_Height(output->GetHeight()), m_Pitch(output->GetWidth()),

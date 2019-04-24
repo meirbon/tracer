@@ -31,7 +31,7 @@ void BVHRenderer::Render(Surface *output)
 			{
 				for (int x = 0; x < m_Width; x++)
 				{
-					Ray r = m_Camera->GenerateRay(float(x), float(y));
+					Ray r = m_Camera->generateRay(float(x), float(y));
 
 					const unsigned int depth = m_Scene->TraceDebug(r);
 					glm::vec3 color = vec3(0.0f);

@@ -43,10 +43,8 @@ class TrianglePlane : public SceneObject
 	 */
 	TrianglePlane(glm::vec3 topRight, glm::vec3 topLeft, glm::vec3 bottomRight, uint matIndex,
 				  SceneObjectList *objectList);
-	TrianglePlane(glm::vec3 topRight, glm::vec3 topLeft, glm::vec3 bottomRight, uint matIndex,
-				  GpuTriangleList *objectList);
 
-	static void create(vec3 topRight, vec3 topLeft, vec3 bottomRight, uint matIndex, TriangleList *tList);
+	static void create(vec3 topRight, vec3 topLeft, vec3 bottomRight, uint matIndex, TriangleList *tList, bool flipNormal = false);
 	~TrianglePlane() override = default;
 
 	glm::vec3 m_Normal{};

@@ -37,7 +37,7 @@ This project makes use of an OpenCL/OpenGL interop. Intel iGPUs do not support t
 
 ## Controls
 
-Switching between the modes can be done using the following buttons:
+Switching between the m_Modes can be done using the following buttons:
 - 1 for Reference (CPU + GPU)
 - 2 for Next Event Estimation (NEE) (CPU)
 - 3 for Importance Sampling (IS) (CPU)

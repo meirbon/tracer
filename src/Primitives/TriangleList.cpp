@@ -28,14 +28,14 @@ void TriangleList::addTriangle(vec3 p0, vec3 p1, vec3 p2, vec3 n0, vec3 n1, vec3
 	m_Vertices.emplace_back(p2.x, p2.y, p2.z, 0.0f);
 
 	const vec3 n0n = normalize(n0);
-	const vec3 n1n = normalize(n0);
-	const vec3 n2n = normalize(n0);
+	const vec3 n1n = normalize(n1);
+	const vec3 n2n = normalize(n2);
 
 	m_Normals.emplace_back(n0n.x, n0n.y, n0n.z, 0.0f);
 	m_Normals.emplace_back(n1n.x, n1n.y, n1n.z, 0.0f);
 	m_Normals.emplace_back(n2n.x, n2n.y, n2n.z, 0.0f);
 
-	const vec3 cn = (n0 + n1 + n2) / 3.0f;
+	const vec3 cn = normalize((n0 + n1 + n2) / 3.0f);
 	m_CenterNormals.emplace_back(cn.x, cn.y, cn.z, 0.0f);
 
 	m_TexCoords.push_back(t0);
@@ -48,7 +48,7 @@ void TriangleList::addTriangle(vec3 p0, vec3 p1, vec3 p2, vec3 n0, vec3 n1, vec3
 
 	m_AABBs.push_back(triangle::getBounds(p0, p1, p2));
 
-	if (mInstance->GetMaterial(matIdx).IsLight())
+	if (mInstance->GetMaterial(matIdx).type == Light)
 		m_LightIndices.push_back(m_Indices.size() - 1);
 }
 
@@ -57,10 +57,9 @@ void TriangleList::loadModel(const std::string &path, float scale, mat4 mat, int
 	Assimp::Importer importer;
 	importer.SetPropertyBool(AI_CONFIG_PP_PTV_NORMALIZE, norm);
 	const aiScene *scene = importer.ReadFile(
-		path, aiProcess_FixInfacingNormals | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices |
-				  aiProcess_ImproveCacheLocality | aiProcess_LimitBoneWeights | aiProcess_FlipWindingOrder |
-				  aiProcess_RemoveRedundantMaterials | aiProcess_Triangulate | aiProcess_FindInvalidData |
-				  aiProcess_PreTransformVertices);
+		path, aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_ImproveCacheLocality |
+				  aiProcess_LimitBoneWeights | aiProcess_FlipWindingOrder | aiProcess_RemoveRedundantMaterials |
+				  aiProcess_Triangulate | aiProcess_FindInvalidData | aiProcess_PreTransformVertices);
 
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
 	{
@@ -80,13 +79,13 @@ void TriangleList::loadModel(const std::string &path, float scale, mat4 mat, int
 		for (size_t i = 0; i < mesh.positions.size(); i++)
 		{
 			vec4 pos = mat * vec4(mesh.positions[i] * scale, 1.0f);
-			vec4 norm = mat * vec4(mesh.normals[i], 0.0f);
+			vec4 normal = mat * vec4(mesh.normals[i], 0.0f);
 
 			pos.w = 0.0f;
-			norm.w = 0.0f;
+			normal.w = 0.0f;
 
 			m_Vertices.push_back(pos);
-			m_Normals.push_back(norm);
+			m_Normals.push_back(normal);
 			m_TexCoords.push_back(mesh.texCoords[i]);
 		}
 	}
@@ -111,7 +110,7 @@ void TriangleList::loadModel(const std::string &path, float scale, mat4 mat, int
 			else
 				matIdx = material;
 
-			if (mInstance->GetMaterial(matIdx).IsLight())
+			if (mInstance->GetMaterial(matIdx).type == Light)
 				m_LightIndices.push_back(m_Indices.size() - 1);
 
 			m_MaterialIdxs.push_back(matIdx);
@@ -119,8 +118,8 @@ void TriangleList::loadModel(const std::string &path, float scale, mat4 mat, int
 			const vec3 vec0 = vec3(m_Vertices[realIdx0].x, m_Vertices[realIdx0].y, m_Vertices[realIdx0].z);
 			const vec3 vec1 = vec3(m_Vertices[realIdx1].x, m_Vertices[realIdx1].y, m_Vertices[realIdx1].z);
 			const vec3 vec2 = vec3(m_Vertices[realIdx2].x, m_Vertices[realIdx2].y, m_Vertices[realIdx2].z);
-			const vec3 normal = normalize(cross(vec1 - vec0, vec2 - vec0));
-			m_CenterNormals.push_back(vec4(normal, 0.0));
+			const vec3 normal = -normalize(cross(vec1 - vec0, vec2 - vec0));
+			m_CenterNormals.emplace_back(normal, 0.0);
 
 			m_AABBs.push_back(triangle::getBounds(m_Vertices[realIdx0], m_Vertices[realIdx1], m_Vertices[realIdx2]));
 		}
@@ -135,12 +134,12 @@ TriangleList::GPUTextures TriangleList::createTextureBuffer()
 	std::vector<unsigned int> tOffsets;
 	std::vector<vec4> tColors;
 
-	for (uint i = 0; i < m_Textures.size(); i++)
+	for (auto &tex : m_Textures)
 	{
 		unsigned int offset = tColors.size();
-		const vec4 *buffer = m_Textures[i]->GetTextureBuffer();
-		const uint width = m_Textures[i]->GetWidth();
-		const uint height = m_Textures[i]->GetHeight();
+		const vec4 *buffer = tex->GetTextureBuffer();
+		const uint width = tex->GetWidth();
+		const uint height = tex->GetHeight();
 		for (uint y = 0; y < height; y++)
 		{
 			for (uint x = 0; x < width; x++)
@@ -181,7 +180,7 @@ TriangleList::Mesh TriangleList::processMesh(aiMesh *mesh, const aiScene *scene,
 
 	for (unsigned int i = 0; i < mesh->mNumVertices; i++)
 	{
-		m.positions.push_back(vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z));
+		m.positions.emplace_back(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
 		m.normals.push_back(glm::normalize(vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z)));
 		if (mesh->mTextureCoords[0])
 		{
@@ -249,7 +248,7 @@ TriangleList::Mesh TriangleList::processMesh(aiMesh *mesh, const aiScene *scene,
 	{
 		float roughness;
 		if (material->Get(AI_MATKEY_SHININESS, roughness) != AI_SUCCESS || roughness < 2.0f)
-			mat = Material::lambertian(vec3(1.0f), 1.0f, dTexIdx, nTexIdx, mTexIdx, dispTexIdx);
+			mat = Material::lambertian(vec3(1.0f), dTexIdx, nTexIdx, mTexIdx, dispTexIdx);
 		else
 		{
 			mat = Material::lambertian(vec3(1.0f), dTexIdx, nTexIdx, mTexIdx, dispTexIdx);

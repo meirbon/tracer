@@ -7,10 +7,9 @@
 #include "Primitives/SceneObject.h"
 #include "Shared.h"
 
-#define LIGHT_MASK 0x01
-
 enum MaterialType
 {
+	Undefined = 0,
 	Light = 1,
 	Lambert = 2,
 	Specular = 3,
@@ -20,86 +19,38 @@ enum MaterialType
 struct Material
 {
   public:
-	Material() = default;
-
-	Material(float diffuse, glm::vec3 colorDiffuse, float shininess, float refractionIndex = 1.0f,
-			 float transparency = 0.0f, glm::vec3 absorption = glm::vec3(0.0f));
-
-	Material(float diffuse, glm::vec3 colorDiffuse, float shininess, float refractionIndex, float transparency);
-
-	Material(float diffuse, glm::vec3 colorDiffuse, float shininess, unsigned int textureIdx);
-
-	Material(float diffuse, glm::vec3 colorDiffuse, float shineness, float refractionIndex, float transparency,
-			 glm::vec3 absorption, unsigned int textureIdx);
-
-	Material(float diffuse, glm::vec3 albedo, float refractionIndex, float transparency, glm::vec3 absorption);
-
-	Material(glm::vec3 emittance, float intensity);
-
-	~Material() = default;
-
 	union {
-		glm::vec3 colorDiffuse = glm::vec3(1.f), albedo; // 12
+		glm::vec3 albedo = glm::vec3(1.f); // 12
+		glm::vec3 emission;
 	};
 	union {
 		float diffuse{}; // 16
 		float intensity;
 	};
 
-	union {
-		glm::vec3 emission{}; // 28
-	};
-
-	float shininess{}; // 32
-
-	glm::vec3 absorption{};  // 44
-	float refractionIndex{}; // 48
-	float transparency{};	// 52
-	int textureIdx = -1;	 // 56
-	unsigned int flags = 0;  // 60
-	float dummy{};			 // 64;
-
-	glm::vec3 GetDiffuseColor(const prims::SceneObject *obj, const glm::vec3 &hitPoint) const;
-
-	glm::vec3 GetAlbedoColor(const prims::SceneObject *obj, const glm::vec3 &hitPoint) const;
-
-	inline const glm::vec3 &GetSpecularColor() const { return this->colorDiffuse; }
-
-	inline const float &GetDiffuse() const { return this->diffuse; }
-
-	inline float GetSpecular() const { return 1.f - this->diffuse; }
-
-	inline const float &GetIntensity() const { return this->intensity; }
-
-	inline const float &GetTransparency() const { return this->transparency; }
-
-	inline bool IsDiffuse() const { return this->diffuse > EPSILON; }
-
-	inline bool IsReflective() const { return (1.f - this->diffuse) > EPSILON; }
-
-	inline bool IsTransparent() const { return this->transparency > EPSILON; }
-
-	inline const glm::vec3 &GetEmission() const { return emission; }
-
-	inline const glm::vec3 GetIntensifiedEmission() const { return emission * intensity; }
-
-	inline void MakeLight() { this->flags = LIGHT_MASK; }
-
-	inline bool IsLight() const { return (this->flags & LIGHT_MASK) == LIGHT_MASK; }
+	glm::vec3 absorption = glm::vec3(0.0f); // 28
+	float refractionIndex = 1.0f;			// 32
+	int textureIdx = -1;					// 36
+	MaterialType type = Undefined;			// 40
+	int normalTex = -1;						// 44
+	int maskTex = -1;						// 48
+	int displaceTex = -1;					// 52
+	float roughnessX = 1.0f;				// 56
+	float roughnessY = 1.0f;				// 60
+	float dummy;							// 64
 
 	static Material lambertian(glm::vec3 albedo, int diffuseTex = -1, int normalTex = -1, int maskTex = -1,
-							   int displaceTex = -1, float refractionIdx = 1.0f)
+							   int displaceTex = -1, float roughness = 1.0f)
 	{
 		Material mat;
 		mat.albedo = albedo;
-		mat.refractionIndex = refractionIdx;
 		mat.textureIdx = diffuseTex;
-		mat.shininess = 1.0f;
-		mat.flags = 2;
-		// mat.normalTex = normalTex;
-		// mat.maskTex = maskTex;
-		// mat.displaceTex = displaceTex;
-		// mat.type = Lambertian;
+		mat.type = Lambert;
+		mat.normalTex = normalTex;
+		mat.maskTex = maskTex;
+		mat.displaceTex = displaceTex;
+		mat.roughnessX = roughness;
+		mat.roughnessY = roughness;
 		return mat;
 	}
 
@@ -108,10 +59,9 @@ struct Material
 		Material mat;
 		mat.refractionIndex = 1.0f;
 		mat.textureIdx = -1;
-		mat.MakeLight();
 		mat.emission = glm::max(emission, glm::vec3(0.01f));
 		mat.absorption = glm::vec3(0.0f);
-		mat.flags = 1;
+		mat.type = Light;
 		return mat;
 	}
 
@@ -121,8 +71,7 @@ struct Material
 		mat.diffuse = 0.0f;
 		mat.albedo = albedo;
 		mat.refractionIndex = refractionIdx;
-		mat.shininess = 10000.0f;
-		mat.flags = 3;
+		mat.type = Specular;
 		return mat;
 	}
 
@@ -133,10 +82,12 @@ struct Material
 		mat.albedo = albedo;
 		mat.refractionIndex = refractIdx;
 		mat.textureIdx = diffuseTex;
+		mat.normalTex = normalTex;
 		mat.absorption = absorption;
-		mat.shininess = glm::max(roughness, 2.0f);
 		mat.diffuse = 0.0f;
-		mat.flags = 4;
+		mat.type = Fresnel;
+		mat.roughnessX = roughness;
+		mat.roughnessY = roughness;
 		return mat;
 	}
 };

@@ -4,15 +4,12 @@
 #include "Utils/GLFWWindow.h"
 #include "Utils/Timer.h"
 
-constexpr int SCRWIDTH = 1280;
-constexpr int SCRHEIGHT = 720;
-
-using namespace utils;
-
-#define USE_SDL 0
+constexpr int SCRWIDTH = 1024;
+constexpr int SCRHEIGHT = 512;
 
 int main(int argc, char *argv[])
 {
+	using namespace utils;
 	std::cout << "Application started." << std::endl;
 
 	bool oFullScreen = false;
@@ -78,6 +75,8 @@ int main(int argc, char *argv[])
 			break;
 		}
 	});
+
+	window.SetResizeCallback([&app](int width, int height) { app->Resize(width, height); });
 
 	while (!exitApp)
 	{

@@ -33,7 +33,7 @@ class MaterialManager
 	static void Delete();
 
   private:
-	MaterialManager() = default;
+	MaterialManager();
 	~MaterialManager() = default;
 
 	std::vector<Material> m_Materials;

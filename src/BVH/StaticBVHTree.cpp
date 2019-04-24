@@ -1,6 +1,5 @@
 #include <utility>
 
-#include "Primitives/GpuTriangleList.h"
 #include "StaticBVHTree.h"
 #include "Utils/Timer.h"
 
@@ -24,16 +23,6 @@ StaticBVHTree::StaticBVHTree(prims::SceneObjectList *objectList, BVHType type, c
 
 	m_AABBs = m_ObjectList->GetAABBs();
 	Reset();
-}
-
-StaticBVHTree::StaticBVHTree(prims::GpuTriangleList *objectList, BVHType type, ctpl::ThreadPool *pool)
-{
-	m_TriangleList = objectList;
-	m_Type = type;
-	m_ThreadPool = pool;
-
-	m_AABBs = m_TriangleList->GetAABBs();
-	ResetGPU();
 }
 
 void StaticBVHTree::ConstructBVH()
@@ -100,19 +89,6 @@ void StaticBVHTree::Reset()
 		m_PrimitiveIndices.clear();
 		for (uint i = 0; i < m_PrimitiveCount; i++)
 			m_PrimitiveIndices.push_back(i);
-		m_BVHPool.resize(m_PrimitiveCount * 2);
-	}
-}
-
-void StaticBVHTree::ResetGPU()
-{
-	CanUseBVH = false;
-	m_BVHPool.clear();
-
-	m_PrimitiveCount = m_TriangleList->GetPrimitiveCount();
-	if (m_PrimitiveCount > 0)
-	{
-		m_PrimitiveIndices = m_TriangleList->GetPrimitiveIndices();
 		m_BVHPool.resize(m_PrimitiveCount * 2);
 	}
 }

@@ -4,19 +4,19 @@
 #include <vector>
 
 #include "BVH/BVHNode.h"
-#include "Primitives/GpuTriangleList.h"
 #include "Primitives/SceneObjectList.h"
 #include "Utils/ctpl.h"
 
 class Microfacet;
+namespace core
+{
 class Surface;
-class AABB;
-
-class GpuTriangleList;
 struct Ray;
+} // namespace core
 
 namespace bvh
 {
+class AABB;
 class StaticBVHTree : public prims::WorldScene
 {
   public:
@@ -26,13 +26,11 @@ class StaticBVHTree : public prims::WorldScene
 
 	explicit StaticBVHTree(std::vector<AABB> aabbs, BVHType type = SAH, ctpl::ThreadPool *pool = nullptr);
 	explicit StaticBVHTree(prims::SceneObjectList *objectList, BVHType type = SAH, ctpl::ThreadPool *pool = nullptr);
-	explicit StaticBVHTree(prims::GpuTriangleList *objectList, BVHType type = SAH, ctpl::ThreadPool *pool = nullptr);
 	StaticBVHTree() = default;
 
 	void ConstructBVH() override;
 	void BuildBVH();
 	void Reset();
-	void ResetGPU();
 	BVHNode &GetNode(unsigned int idx);
 	void TraceRay(core::Ray &r) const override;
 	bool TraceShadowRay(core::Ray &r, float tMax) const override;
@@ -48,7 +46,6 @@ class StaticBVHTree : public prims::WorldScene
 	std::vector<unsigned int> m_PrimitiveIndices;
 	size_t m_PrimitiveCount = 0;
 	prims::SceneObjectList *m_ObjectList = nullptr;
-	prims::GpuTriangleList *m_TriangleList = nullptr;
 	bool CanUseBVH = false;
 	unsigned int m_PoolPtr = 0;
 

@@ -6,7 +6,6 @@
 
 #include "Core/BVHRenderer.h"
 #include "Core/Camera.h"
-#include "Core/GpuTracer.h"
 #include "Core/PathTracer.h"
 #include "Core/RayTracer.h"
 #include "Core/Scenes.h"
@@ -18,8 +17,8 @@
 
 #include "Utils/Messages.h"
 #include "Utils/Timer.h"
-#include "Utils/ctpl.h"
 #include "Utils/Window.h"
+#include "Utils/ctpl.h"
 
 #include "Primitives/Model.h"
 
@@ -48,10 +47,6 @@ class Application
 
 	void Tick(float deltaTime) noexcept;
 
-	/**
-	 * x = true if scrolling right
-	 * y = true if scrolling up
-	 */
 	void MouseScroll(glm::bvec2 xy);
 
 	void MouseScroll(glm::vec2 xy);
@@ -130,7 +125,6 @@ class Application
 	int m_Width, m_Height;
 
 	prims::SceneObjectList *m_ObjectList;
-	prims::GpuTriangleList *m_GpuList;
 	bvh::TopLevelBVH *m_Scene = nullptr;
 
 	ctpl::ThreadPool *m_TPool;
@@ -139,6 +133,7 @@ class Application
 	bool m_RebuildingBVH = false;
 	bool m_BVHDebugMode = false;
 	core::BVHRenderer *m_BVHRenderer = nullptr;
-
 	utils::Window *m_Window;
+
+	float movementspeedModifier = .01f;
 };

@@ -44,7 +44,7 @@ void CheckFrameBuffer()
 {
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE)
 		return;
-	utils::FatalError(__FILE__, __LINE__, "Incomplete frame buffer");
+	utils::FatalError(__FILE__, __LINE__, "Incomplete m_Frame buffer");
 }
 
 void CheckShader(GLuint shader)

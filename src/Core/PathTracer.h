@@ -18,7 +18,7 @@ class PathTracer : public Renderer
 
 	explicit PathTracer(prims::WorldScene *scene, int width, int height, Camera *camera, Surface *skyBox = nullptr);
 
-	inline void SetMode(Mode mode) override
+	inline void SetMode(int mode) override
 	{
 		m_Mode = mode;
 		Reset();
@@ -78,7 +78,7 @@ class PathTracer : public Renderer
 
 	void Resize(gl::Texture *newOutput) override;
 
-	void SetMode(std::string mode) override
+	void SetMode(const std::string &mode) override
 	{
 		if (mode == "NEE")
 			SetMode(NEE);

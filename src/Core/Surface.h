@@ -3,6 +3,7 @@
 #include <FreeImage.h>
 #include <glm/glm.hpp>
 #include <string>
+#include <vector>
 
 namespace core
 {
@@ -108,7 +109,7 @@ class Surface
   private:
 	// Attributes
 	Pixel *m_Buffer;
-	glm::vec4 *m_TexBuffer = nullptr;
+	std::vector<glm::vec4> m_TexBuffer;
 	int m_Width, m_Height;
 	int m_Pitch;
 	int m_Flags;

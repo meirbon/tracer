@@ -38,10 +38,8 @@ class Buffer
 {
   public:
 	// constructor / destructor
-	Buffer() : hostBuffer(0) {}
-
-	Buffer(unsigned int size, void *ptr = 0);
-	Buffer(gl::Texture *texture, BufferType t = TARGET);
+	explicit Buffer(unsigned int size, void *ptr = nullptr);
+	explicit Buffer(gl::Texture *texture, BufferType t = TARGET);
 
 	~Buffer();
 

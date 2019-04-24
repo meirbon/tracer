@@ -3,6 +3,7 @@
 #include "imgui.h"
 
 #include "Core/WFTracer.h"
+#include "Primitives/Plane.h"
 #include "Primitives/TriangleList.h"
 
 #include <algorithm>
@@ -16,7 +17,6 @@ static std::deque<float> frametimes = {};
 static int lastMode = 0;
 static int renderMode = 0;
 static float maxFrametime = 10.0f;
-static float movementspeedModifier = 1.0f;
 auto *gameObjects = new std::vector<bvh::GameObject *>();
 
 bvh::GameObject *motherGameObject;
@@ -28,32 +28,26 @@ static TriangleList *triangleList = new TriangleList();
 
 Application::Application(utils::Window *window, RendererType type, int width, int height, const char *scene,
 						 const char *skybox)
-	: m_Type(type), m_tIndex(0), m_Width(width), m_Height(height), m_Window(window)
+	: m_Type(type), m_Camera(width, height, 70.0f), m_tIndex(0), m_Width(width), m_Height(height), m_Window(window)
 {
 	using namespace bvh;
 	using namespace core;
 
 	for (auto &key : m_KeyStatus)
-		key = 0;
+		key = false;
 
 	const auto cores = ctpl::nr_of_cores;
 	m_TPool = new ctpl::ThreadPool(cores);
 	m_ObjectList = new prims::SceneObjectList();
-	m_GpuList = new prims::GpuTriangleList();
 
 	m_Type = type;
 	Resize(width, height);
 	m_DrawShader = new gl::Shader("shaders/quad.vert", "shaders/quad.frag");
-	m_Camera = Camera(m_Width, m_Height, 80.f);
-
-	auto defaultMaterial = MaterialManager::GetInstance()->AddMaterial(Material(1.0f, vec3(1.0f), 8.0f));
 
 	if (m_Type == CPU || m_Type == CPU_RAYTRACER)
 	{
-		if (scene != nullptr)
-			prims::Load(scene, defaultMaterial, glm::vec3(0.0f), 1.0f, m_ObjectList);
-		else
-			Dragon(m_ObjectList);
+		//		else
+		//			Dragon(m_ObjectList);
 		//			Micromaterials(m_ObjectList);
 	}
 	else
@@ -67,6 +61,11 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 		else
 		{
 			Micromaterials(triangleList);
+			// const auto lightMat = Material::light(vec3(10.0f));
+			// const unsigned int lightIdx = MaterialManager::GetInstance()->AddMaterial(lightMat);
+			// prims::TrianglePlane::create(vec3(100.0f, 100.0f, 10.0f), vec3(-100.0f, 100.0f, 10.0f),
+										//  vec3(100.0f, 100.0f, -10.0f), lightIdx, triangleList);
+			// triangleList->loadModel("models/sponza/sponza.obj", 0.1f, mat4(1.0f), -1, false);
 		}
 		// else
 		// Dragon(m_GpuList);
@@ -245,7 +244,6 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 	{
 	case (GPU):
 	{
-		std::cout << "Primitive count: " << m_GpuList->GetTriangles().size() << std::endl;
 		m_Renderer = new WFTracer(triangleList, m_OutputTexture[0], m_OutputTexture[1], &m_Camera, m_Skybox, m_TPool);
 		// m_Renderer =
 		// 	new core::GpuTracer(m_GpuList, m_OutputTexture[0], m_OutputTexture[1], &m_Camera, m_Skybox, m_TPool);
@@ -330,10 +328,12 @@ void Application::Tick(float deltaTime) noexcept
 
 void Application::HandleKeys(float deltaTime) noexcept
 {
-	const float movementSpeed =
-		deltaTime * MOVEMENT_SPEED * (m_KeyStatus[GLFW_KEY_LEFT_SHIFT] ? 4.f : 1.f) * movementspeedModifier;
-	const float rotationSpeed = deltaTime * 0.5f * (m_KeyStatus[GLFW_KEY_LEFT_SHIFT] ? 2.f : 1.f);
+	const float movementSpeed = deltaTime * (m_KeyStatus[GLFW_KEY_LEFT_SHIFT] ? 4.f : 1.f) * movementspeedModifier;
+	const float rotationSpeed = deltaTime * 0.001f * (m_KeyStatus[GLFW_KEY_LEFT_SHIFT] ? 2.f : 1.f);
 	bool resetSamples = false;
+
+	vec3 movement = {0, 0, 0};
+	vec2 scroll = {0, 0};
 
 	if (m_KeyStatus[GLFW_KEY_LEFT_ALT] && m_KeyStatus[GLFW_KEY_ENTER])
 		m_Window->SwitchFullscreen();
@@ -341,61 +341,27 @@ void Application::HandleKeys(float deltaTime) noexcept
 	if (!m_MovementLocked)
 	{
 		if (m_KeyStatus[GLFW_KEY_W])
-		{
-			m_Camera.MoveForward(movementSpeed);
-			resetSamples = true;
-		}
+			movement += vec3(0, 0, movementSpeed);
 		if (m_KeyStatus[GLFW_KEY_S])
-		{
-			m_Camera.MoveBackward(movementSpeed);
-			resetSamples = true;
-		}
+			movement += vec3(0, 0, -movementSpeed);
 		if (m_KeyStatus[GLFW_KEY_A])
-		{
-			m_Camera.MoveLeft(movementSpeed);
-			resetSamples = true;
-		}
+			movement += vec3(movementSpeed, 0, 0);
 		if (m_KeyStatus[GLFW_KEY_D])
-		{
-			m_Camera.MoveRight(movementSpeed);
-			resetSamples = true;
-		}
-
+			movement += vec3(-movementSpeed, 0, 0);
 		if (m_KeyStatus[GLFW_KEY_SPACE])
-		{
-			m_Camera.MoveUp(movementSpeed);
-			resetSamples = true;
-		}
+			movement += vec3(0, movementSpeed, 0);
 		if (m_KeyStatus[GLFW_KEY_LEFT_CONTROL])
-		{
-			m_Camera.MoveDown(movementSpeed);
-			resetSamples = true;
-		}
-
+			movement += vec3(0, -movementSpeed, 0);
 		if (m_KeyStatus[GLFW_KEY_UP])
-		{
-			m_Camera.RotateDown(rotationSpeed);
-			resetSamples = true;
-		}
+			scroll += vec2(0, rotationSpeed);
 		if (m_KeyStatus[GLFW_KEY_DOWN])
-		{
-			m_Camera.RotateUp(rotationSpeed);
-			resetSamples = true;
-		}
+			scroll += vec2(0, -rotationSpeed);
 		if (m_KeyStatus[GLFW_KEY_RIGHT])
-		{
-			m_Camera.RotateRight(rotationSpeed);
-			resetSamples = true;
-		}
+			scroll += vec2(rotationSpeed, 0);
 		if (m_KeyStatus[GLFW_KEY_LEFT])
-		{
-			m_Camera.RotateLeft(rotationSpeed);
-			resetSamples = true;
-		}
+			scroll += vec2(-rotationSpeed, 0);
 		if (m_KeyStatus[GLFW_KEY_R])
-		{
 			resetSamples = true;
-		}
 
 		if (m_KeyStatus[GLFW_KEY_0])
 		{
@@ -409,23 +375,15 @@ void Application::HandleKeys(float deltaTime) noexcept
 	}
 
 	if (m_KeyStatus[GLFW_KEY_M])
-	{
 		SwitchDynamicLocked();
-	}
-
 	if (m_KeyStatus[GLFW_KEY_L])
-	{
 		SwitchMovementLocked();
-	}
-
 	if (m_KeyStatus[GLFW_KEY_B])
-	{
 		SwitchBVHMode();
-	}
-
-	if (resetSamples)
+	if (resetSamples || any(notEqual(movement, vec3(0))) || any(notEqual(scroll, vec2(0))))
 	{
-		m_Camera.isDirty = true;
+		m_Camera.move(movement);
+		m_Camera.rotate(scroll);
 		m_Renderer->Reset();
 	}
 }
@@ -434,7 +392,7 @@ void Application::MouseScroll(glm::bvec2 xy)
 {
 	if (!m_MovementLocked)
 	{
-		m_Camera.ChangeFOV(m_Camera.GetFOV() + (xy.y ? 1 : -1) * 2);
+		m_Camera.updateFOV((xy.y ? 1 : -1) * 2);
 		m_Renderer->Reset();
 	}
 }
@@ -443,25 +401,25 @@ void Application::MouseScroll(glm::vec2 xy)
 {
 	if (!m_MovementLocked)
 	{
-		m_Camera.ChangeFOV(m_Camera.GetFOV() + xy.y);
+		m_Camera.updateFOV(xy.y);
 		m_Renderer->Reset();
 	}
 }
 
 void Application::MouseMove(glm::ivec2 xy)
 {
-	if (!m_MovementLocked && m_MouseKeyStatus[GLFW_MOUSE_BUTTON_LEFT])
+	if (!m_MovementLocked && m_MouseKeyStatus[GLFW_MOUSE_BUTTON_RIGHT])
 	{
-		m_Camera.ProcessMouse(xy.x, xy.y);
+		m_Camera.processMouse(xy);
 		m_Renderer->Reset();
 	}
 }
 
 void Application::MouseMove(glm::vec2 xy)
 {
-	if (!m_MovementLocked && m_MouseKeyStatus[GLFW_MOUSE_BUTTON_LEFT])
+	if (!m_MovementLocked && m_MouseKeyStatus[GLFW_MOUSE_BUTTON_RIGHT])
 	{
-		m_Camera.ProcessMouse(xy.x, xy.y);
+		m_Camera.processMouse(xy);
 		m_Renderer->Reset();
 	}
 }
@@ -472,21 +430,16 @@ void Application::Draw(float deltaTime)
 
 	if (frametimes.size() >= FPS_FRAMES)
 		frametimes.pop_front();
-
-	maxFrametime = std::max(maxFrametime, deltaTime);
-	frametimes.push_back(deltaTime);
 	float avgFrametime = 0.0f;
-	std::vector<float> ft(frametimes.size());
-	int i = 0;
-	for (float fp : frametimes)
-	{
-		ft[i] = fp;
-		avgFrametime += fp;
-		i++;
-	}
+	for (auto ft : frametimes)
+		avgFrametime += ft;
+
+	maxFrametime = 0.0f;
+	frametimes.push_back(deltaTime);
 
 	ImGui::Begin("Information");
-	ImGui::DragFloat("Speed", &movementspeedModifier);
+	ImGui::Text("Position: %f, %f, %f", m_Camera.position.x, m_Camera.position.y, m_Camera.position.z);
+	ImGui::DragFloat("Speed", &movementspeedModifier, 0.005f, 0.005f, 100.0f);
 	if (ImGui::Button("Reset"))
 		m_Renderer->Reset();
 
@@ -507,8 +460,6 @@ void Application::Draw(float deltaTime)
 
 	avgFrametime = (avgFrametime / float(frametimes.size()));
 	ImGui::Text("FPS: %f", 1000.0f / avgFrametime);
-	ImGui::PlotHistogram("", ft.data(), frametimes.size(), 0, "Frame times", 0.0f, maxFrametime, ImVec2(300, 100));
-	//	bool (*items_getter)(void* data, int idx, const char** out_text)
 	const auto modes = m_Renderer->GetModes();
 	lastMode = renderMode;
 	ImGui::ListBox("Mode", &renderMode, modes.data(), modes.size());
@@ -535,17 +486,16 @@ void Application::Draw(float deltaTime)
 void Application::Resize(int newWidth, int newHeight)
 {
 	glFinish();
-	m_Camera.SetWidthHeight(newWidth, newHeight);
+	m_Camera.setDimensions({newWidth, newHeight});
 	m_Width = newWidth;
 	m_Height = newHeight;
+	m_tIndex = 0;
 
-	delete m_Screen;
 	delete m_OutputTexture[0];
 	delete m_OutputTexture[1];
 
 	if (m_Type == CPU || m_Type == CPU_RAYTRACER)
 	{
-		m_Screen = new core::Surface(m_Width, m_Height);
 		m_OutputTexture[0] = new gl::Texture(m_Width, m_Height, gl::Texture::SURFACE);
 		m_OutputTexture[1] = new gl::Texture(m_Width, m_Height, gl::Texture::SURFACE);
 		m_Screen->SetPitch(m_Width);
@@ -567,9 +517,6 @@ void Application::Resize(int newWidth, int newHeight)
 			m_Screen = new core::Surface(m_Width, m_Height);
 
 		if (m_Renderer)
-		{
-			((core::GpuTracer *)m_Renderer)->Resize(m_OutputTexture[0]);
-			((core::GpuTracer *)m_Renderer)->SetOutput(m_OutputTexture[0], m_OutputTexture[1]);
-		}
+			m_Renderer->Resize(m_OutputTexture[0]);
 	}
 }

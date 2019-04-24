@@ -25,16 +25,19 @@ typedef struct
 typedef struct
 {
 	union {
-		float4 tmin4;
-		float tmin[4];
-		int tmini[4];
+		float4 tmin;
+		int4 tmini;
+		int tmini4[4];
 	};
-	uint result[4];
+	union {
+		int4 result;
+		int result4[4];
+	};
 } MBVHHit;
 
 MBVHHit iMBVHNode(MBVHNode node, int *hit_idx, float *rayt, float3 origin, float3 inv_ray_dir);
-void iMBVHTree(global MBVHNode *nodes, global int3 *indices, global float3 *vertices, global uint *primitiveIndices,
-			   Ray *ray);
+void iMBVHTree(global MBVHNode *nodes, global int3 *indices, global float3 *vertices, global uint *primIdxs,
+			   float *rayt, int *hit_idx, float3 origin, float3 dir);
 
 inline MBVHHit iMBVHNode(MBVHNode node, int *hit_idx, float *rayt, float3 origin, float3 inv_ray_dir)
 {
@@ -46,7 +49,7 @@ inline MBVHHit iMBVHNode(MBVHNode node, int *hit_idx, float *rayt, float3 origin
 	float4 t1 = (node.minx - org) * dir;
 	float4 t2 = (node.maxx - org) * dir;
 
-	hit.tmin4 = fmin(t1, t2);
+	hit.tmin = fmin(t1, t2);
 	float4 tmax = fmax(t1, t2);
 
 	// Y axis
@@ -55,7 +58,7 @@ inline MBVHHit iMBVHNode(MBVHNode node, int *hit_idx, float *rayt, float3 origin
 	t1 = (node.miny - org) * dir;
 	t2 = (node.maxy - org) * dir;
 
-	hit.tmin4 = fmax(hit.tmin4, fmin(t1, t2));
+	hit.tmin = fmax(hit.tmin, fmin(t1, t2));
 	tmax = fmin(tmax, fmax(t1, t2));
 
 	// Z axis
@@ -64,56 +67,55 @@ inline MBVHHit iMBVHNode(MBVHNode node, int *hit_idx, float *rayt, float3 origin
 	t1 = (node.minz - org) * dir;
 	t2 = (node.maxz - org) * dir;
 
-	hit.tmin4 = fmax(hit.tmin4, fmin(t1, t2));
+	hit.tmin = fmax(hit.tmin, fmin(t1, t2));
 	tmax = fmin(tmax, fmax(t1, t2));
 
-	hit.tmini[0] = ((hit.tmini[0] & 0xFFFFFFFC) | 0b00);
-	hit.tmini[1] = ((hit.tmini[1] & 0xFFFFFFFC) | 0b01);
-	hit.tmini[2] = ((hit.tmini[2] & 0xFFFFFFFC) | 0b10);
-	hit.tmini[3] = ((hit.tmini[3] & 0xFFFFFFFC) | 0b11);
+	hit.tmini = (hit.tmini & (int4)(0xFFFFFFFC)) | ((int4)(0b00, 0b01, 0b10, 0b11));
 
-	hit.result[0] = ((tmax.x > 0) && (hit.tmin4.x <= tmax.x) && hit.tmin4.x < *rayt) ? 1 : 0;
-	hit.result[1] = ((tmax.y > 0) && (hit.tmin4.y <= tmax.y) && hit.tmin4.y < *rayt) ? 1 : 0;
-	hit.result[2] = ((tmax.z > 0) && (hit.tmin4.z <= tmax.z) && hit.tmin4.z < *rayt) ? 1 : 0;
-	hit.result[3] = ((tmax.w > 0) && (hit.tmin4.w <= tmax.w) && hit.tmin4.w < *rayt) ? 1 : 0;
+	//	hit.result = (tmax > (float4)(0)) && (hit.tmin <= tmax) && (hit.tmin < (float4)(*rayt));
 
-	float tmp;
+	hit.result = tmax > ((float4)(0)) & hit.tmin <= tmax;
+	hit.result4[0] &= (hit.tmin.x < *rayt);
+	hit.result4[1] &= (hit.tmin.y < *rayt);
+	hit.result4[2] &= (hit.tmin.z < *rayt);
+	hit.result4[3] &= (hit.tmin.w < *rayt);
+
 	if (hit.tmin[0] > hit.tmin[1])
 	{
-		tmp = hit.tmin[0];
-		hit.tmin[0] = hit.tmin[1];
-		hit.tmin[1] = tmp;
+		hit.tmini4[0] = hit.tmini4[0] ^ hit.tmini4[1];
+		hit.tmini4[1] = hit.tmini4[0] ^ hit.tmini4[1];
+		hit.tmini4[0] = hit.tmini4[0] ^ hit.tmini4[1];
 	}
 	if (hit.tmin[2] > hit.tmin[3])
 	{
-		tmp = hit.tmin[2];
-		hit.tmin[2] = hit.tmin[3];
-		hit.tmin[3] = tmp;
+		hit.tmini4[2] = hit.tmini4[2] ^ hit.tmini4[3];
+		hit.tmini4[3] = hit.tmini4[2] ^ hit.tmini4[3];
+		hit.tmini4[2] = hit.tmini4[2] ^ hit.tmini4[3];
 	}
 	if (hit.tmin[0] > hit.tmin[2])
 	{
-		tmp = hit.tmin[0];
-		hit.tmin[0] = hit.tmin[2];
-		hit.tmin[2] = tmp;
+		hit.tmini4[0] = hit.tmini4[0] ^ hit.tmini4[2];
+		hit.tmini4[2] = hit.tmini4[0] ^ hit.tmini4[2];
+		hit.tmini4[0] = hit.tmini4[0] ^ hit.tmini4[2];
 	}
 	if (hit.tmin[1] > hit.tmin[3])
 	{
-		tmp = hit.tmin[1];
-		hit.tmin[1] = hit.tmin[3];
-		hit.tmin[3] = tmp;
+		hit.tmini4[1] = hit.tmini4[1] ^ hit.tmini4[3];
+		hit.tmini4[3] = hit.tmini4[1] ^ hit.tmini4[3];
+		hit.tmini4[1] = hit.tmini4[1] ^ hit.tmini4[3];
 	}
 	if (hit.tmin[2] > hit.tmin[3])
 	{
-		tmp = hit.tmin[2];
-		hit.tmin[2] = hit.tmin[3];
-		hit.tmin[3] = tmp;
+		hit.tmini4[2] = hit.tmini4[2] ^ hit.tmini4[3];
+		hit.tmini4[3] = hit.tmini4[2] ^ hit.tmini4[3];
+		hit.tmini4[2] = hit.tmini4[2] ^ hit.tmini4[3];
 	}
 
 	return hit;
 }
 
-inline void iMBVHTree(global MBVHNode *nodes, global int3 *indices, global float3 *vertices,
-					  global uint *primitiveIndices, Ray *ray)
+void iMBVHTree(global MBVHNode *nodes, global int3 *indices, global float3 *vertices, global uint *primIdxs,
+			   float *rayt, int *hit_idx, float3 origin, float3 dir)
 {
 	MBVHTraversal todo[64];
 	MBVHHit hit;
@@ -122,7 +124,7 @@ inline void iMBVHTree(global MBVHNode *nodes, global int3 *indices, global float
 	todo[0].leftFirst = 0;
 	todo[0].count = -1;
 
-	float3 inv_dir = 1.0f / ray->direction;
+	float3 inv_dir = 1.0f / dir;
 
 	while (stackptr >= 0)
 	{
@@ -133,28 +135,30 @@ inline void iMBVHTree(global MBVHNode *nodes, global int3 *indices, global float
 		{ // leaf node
 			for (int i = 0; i < mTodo.count; i++)
 			{
-				const int primIdx = primitiveIndices[mTodo.leftFirst + i];
+				const int primIdx = primIdxs[mTodo.leftFirst + i];
 				int3 idx = indices[primIdx];
 				float3 p0 = vertices[idx.x];
 				float3 p1 = vertices[idx.y];
 				float3 p2 = vertices[idx.z];
-				if (t_intersect(ray->origin, ray->direction, &ray->t, p0, p1, p2, 0.00001f))
-					ray->hit_idx = primIdx;
+				if (t_intersect(origin, dir, rayt, p0, p1, p2, EPSILON))
+					*hit_idx = primIdx;
 			}
-			continue;
 		}
-
-		hit = iMBVHNode(nodes[mTodo.leftFirst], &ray->hit_idx, &ray->t, ray->origin, inv_dir);
-		if (hit.result[0] || hit.result[1] || hit.result[2] || hit.result[3])
+		else
 		{
-			for (int i = 3; i >= 0; i--)
-			{ // reversed order, we want to check best nodes first
-				const int idx = (hit.tmini[i] & 0b11);
-				if (hit.result[idx] == 1)
-				{
-					stackptr++;
-					todo[stackptr].leftFirst = nodes[mTodo.leftFirst].child[idx];
-					todo[stackptr].count = nodes[mTodo.leftFirst].count[idx];
+			hit = iMBVHNode(nodes[mTodo.leftFirst], hit_idx, rayt, origin, inv_dir);
+			const int hasHit = hit.result.x | hit.result.y | hit.result.z | hit.result.w;
+			if (hasHit)
+			{
+				for (int i = 3; i >= 0; i--)
+				{ // reversed order, we want to check best nodes first
+					const int idx = (hit.tmini4[i] & 0b11);
+					if (hit.result[idx] == 1)
+					{
+						stackptr++;
+						todo[stackptr].leftFirst = nodes[mTodo.leftFirst].child[idx];
+						todo[stackptr].count = nodes[mTodo.leftFirst].count[idx];
+					}
 				}
 			}
 		}

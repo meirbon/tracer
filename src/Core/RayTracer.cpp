@@ -59,7 +59,7 @@ void RayTracer::Render(Surface *output)
 						{
 							const int pixel_x = x + tile_x * TILE_WIDTH;
 							uint depth = 0;
-							Ray r = m_Camera->GenerateRay(float(pixel_x), float(pixel_y));
+							Ray r = m_Camera->generateRay(float(pixel_x), float(pixel_y));
 							const glm::vec3 color = Trace(r, depth, 1.f, *rngPointer);
 
 							const int pidx = pixel_x + pixel_y * m_Width;
@@ -110,18 +110,16 @@ glm::vec3 RayTracer::Shade(const Ray &r, uint &depth, float refractionIndex, Ran
 	const vec3 p = r.GetHitpoint();
 	const auto mat = MaterialManager::GetInstance()->GetMaterial(r.obj->materialIdx);
 
-	if (mat.IsLight())
+	if (mat.type == Light)
 	{
 		return mat.emission;
 	}
 
-	const glm::vec3 diffuseColor =
-		mat.IsDiffuse() ? GetDiffuseSpecularColor(r, mat, p, rng) * mat.GetDiffuse() : glm::vec3(0.0f);
-	const glm::vec3 reflectionRefractionColor =
-		mat.IsReflective() ? GetreflectionRefractionColor(r, depth, refractionIndex, mat, p, rng) * mat.GetSpecular()
-						   : glm::vec3(0.0f);
-
-	return diffuseColor + reflectionRefractionColor;
+	vec3 color;
+	if (mat.type == Lambert)
+		return GetDiffuseSpecularColor(r, mat, p, rng);
+	else
+		return GetreflectionRefractionColor(r, depth, refractionIndex, mat, p, rng);
 }
 
 glm::vec3 RayTracer::GetDiffuseSpecularColor(const Ray &r, const Material &mat, const glm::vec3 &hitPoint,
@@ -130,18 +128,18 @@ glm::vec3 RayTracer::GetDiffuseSpecularColor(const Ray &r, const Material &mat, 
 	if (m_LightCount < 0)
 		return {};
 
-	glm::vec3 ret = ambientColor * mat.GetDiffuseColor(r.obj, hitPoint);
+	glm::vec3 ret = ambientColor * mat.albedo;
 
-	unsigned int l1 = (unsigned int)(rng.Rand() * m_LightCount);
-	unsigned int l2 = (unsigned int)(rng.Rand() * m_LightCount);
-	unsigned int l3 = (unsigned int)(rng.Rand() * m_LightCount);
+	auto l1 = (unsigned int)(rng.Rand() * m_LightCount);
+	auto l2 = (unsigned int)(rng.Rand() * m_LightCount);
+	auto l3 = (unsigned int)(rng.Rand() * m_LightCount);
 
 	const prims::SceneObject *lights[3] = {m_Scene->GetLights().at(l1), m_Scene->GetLights().at(l2),
 										   m_Scene->GetLights().at(l3)};
 
 	for (auto *light : lights)
 	{
-		glm::vec3 lightContrib = glm::vec3(0.0f);
+		auto lightContrib = glm::vec3(0.0f);
 		const auto p = r.GetHitpoint();
 		const auto towardsLight = light->centroid - p;
 		const float towardsLightDot = glm::dot(towardsLight, towardsLight);
@@ -169,7 +167,7 @@ glm::vec3 RayTracer::GetDiffuseSpecularColor(const Ray &r, const Material &mat, 
 				const auto lightMat = MaterialManager::GetInstance()->GetMaterial(light->materialIdx);
 				const float SolidAngle = LNdotL * (light->m_Area / towardsLightDot);
 
-				ret = mat.GetAlbedoColor(r.obj, p) * lightMat.GetEmission() * SolidAngle * NdotL * float(m_LightCount);
+				ret = mat.albedo * lightMat.emission * SolidAngle * NdotL * float(m_LightCount);
 			}
 		}
 	}
@@ -191,7 +189,7 @@ glm::vec3 RayTracer::GetreflectionRefractionColor(const core::Ray &r, uint &dept
 	float FractionReflection = 1.f;
 	float FractionTransmission = 0.f;
 
-	if (mat.IsTransparent())
+	if (mat.type == Fresnel)
 	{
 		float n1, n2;
 		bool DoAbsorption = false;

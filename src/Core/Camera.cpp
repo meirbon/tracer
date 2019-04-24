@@ -4,24 +4,32 @@ using namespace glm;
 
 namespace core
 {
-Camera::Camera(int width, int height, float fov, float mouseSens, glm::vec3 pos)
-	: m_Width((float)width), m_Height((float)height), m_InvWidth(1.f / width), m_InvHeight(1.f / height)
+Camera::Camera(int width, int height, float fov, float mouseSens, vec3 pos)
+	: position(pos), yaw(0), pitch(0), planeWidth((float)width), planeHeight((float)height), m_InvWidth(1.f / width),
+	  m_InvHeight(1.f / height)
 {
-	m_RotationSpeed = mouseSens;
-	m_ViewDirection = getDirectionFromPitchAndYaw();
-	m_Origin = pos;
-	m_AspectRatio = m_Width / m_Height;
-	m_FOV_Distance = tanf(glm::radians(fov * 0.5f));
+	up = vec3(0, 1, 0);
+	right = vec3(1, 0, 0);
+	forward = cross(up, right);
+
+	rotationSpeed = mouseSens;
+	calcForward();
+	position = pos;
+	aspectRatio = planeWidth / planeHeight;
+	fovDistance = tanf(glm::radians(fov * 0.5f));
+	isDirty = true;
 }
 
-Ray Camera::GenerateRay(float x, float y) const
+Camera::~Camera() { delete gpuBuffer; }
+
+Ray Camera::generateRay(float x, float y) const
 {
-	const vec3 &w = m_ViewDirection;
-	const vec3 u = normalize(cross(w, m_Up));
+	const vec3 &w = forward;
+	const vec3 u = normalize(cross(w, up));
 	const vec3 v = normalize(cross(u, w));
 
-	const vec3 horizontal = u * m_FOV_Distance * m_AspectRatio;
-	const vec3 vertical = v * m_FOV_Distance;
+	const vec3 horizontal = u * fovDistance * aspectRatio;
+	const vec3 vertical = v * fovDistance;
 
 	const float PixelX = x * m_InvWidth;
 	const float PixelY = y * m_InvHeight;
@@ -31,107 +39,114 @@ Ray Camera::GenerateRay(float x, float y) const
 
 	const vec3 pointAtDistanceOneFromPlane = w + horizontal * ScreenX + vertical * ScreenY;
 
-	return {m_Origin, normalize(pointAtDistanceOneFromPlane)};
+	return {position, normalize(pointAtDistanceOneFromPlane)};
 }
 
-Ray Camera::GenerateRandomRay(float x, float y, RandomGenerator &rng) const
+Ray Camera::generateRandomRay(float x, float y, RandomGenerator &rng) const
 {
 	const float newX = x + rng.Rand(1.f) - .5f;
 	const float newY = y + rng.Rand(1.f) - .5f;
 
-	return GenerateRay(newX, newY);
+	return generateRay(newX, newY);
 }
 
-void Camera::ProcessMouse(int x, int y) noexcept
+void Camera::processMouse(glm::vec2 xy) noexcept
 {
-	RotateRight((float)x);
-	RotateUp((float)y);
-	m_ViewDirection = getDirectionFromPitchAndYaw();
+	if (any(notEqual(xy, vec2(0, 0))))
+	{
+		rotate(xy * rotationSpeed);
+		calcForward();
+		isDirty = true;
+	}
 }
 
-void Camera::ProcessMouse(float x, float y) noexcept
+void Camera::move(glm::vec3 offset) noexcept
 {
-	RotateRight(x);
-	RotateUp(y);
-	m_ViewDirection = getDirectionFromPitchAndYaw();
-}
-
-vec3 Camera::GetPosition() const noexcept { return m_Origin; }
-
-void Camera::MoveUp(float movementSpeed) noexcept { m_Origin += m_Up * movementSpeed; }
-
-void Camera::MoveDown(float movementSpeed) noexcept { m_Origin -= m_Up * movementSpeed; }
-
-void Camera::MoveForward(float movementSpeed) noexcept { m_Origin += m_ViewDirection * (movementSpeed); }
-
-void Camera::MoveBackward(float movementSpeed) noexcept { m_Origin += m_ViewDirection * (-movementSpeed); }
-
-void Camera::MoveLeft(float movementSpeed) noexcept
-{
-	const vec3 axis = cross(m_ViewDirection, m_Up);
-	m_Origin += normalize(axis) * (-movementSpeed);
-}
-
-void Camera::MoveRight(float movementSpeed) noexcept
-{
-	const vec3 axis = cross(m_ViewDirection, m_Up);
-	m_Origin += normalize(axis) * movementSpeed;
+	position += up * offset.y + offset.x * normalize(cross(up, forward)) + forward * offset.z;
 	isDirty = true;
 }
 
-void Camera::RotateUp(float times) noexcept
+void Camera::rotate(glm::vec2 offset) noexcept
 {
-	m_Pitch += times * m_RotationSpeed;
-#if CAP_PITCH
-	m_Pitch = fmax(fmin(m_Pitch, MAX_PITCH), MIN_PITCH);
-#endif
-	m_ViewDirection = getDirectionFromPitchAndYaw();
+	yaw += offset.x;
+	pitch = clamp(pitch + offset.y , -radians(85.f), radians(85.f));
+	calcForward();
 	isDirty = true;
 }
 
-void Camera::RotateDown(float times) noexcept
+void Camera::updateFOV(float offset) noexcept
 {
-	m_Pitch -= times * m_RotationSpeed;
-#if CAP_PITCH
-	m_Pitch = fmax(fmin(m_Pitch, MAX_PITCH), MIN_PITCH);
-#endif
-	m_ViewDirection = getDirectionFromPitchAndYaw();
+	const float fov = clamp(FOV.x + offset, 20.0f, 160.0f);
+	FOV = {fov, fov};
+	fovDistance = tanf(glm::radians(fov * 0.5f));
 	isDirty = true;
 }
 
-void Camera::RotateRight(float times) noexcept
+void Camera::calcForward() noexcept
 {
-	m_Yaw += times * m_RotationSpeed;
-	m_ViewDirection = getDirectionFromPitchAndYaw();
+	this->forward = {sinf(yaw) * cosf(pitch), sinf(pitch), -1.0f * cosf(yaw) * cosf(pitch)};
+	this->right = cross(normalize(this->forward), this->up);
 	isDirty = true;
 }
 
-void Camera::RotateLeft(float times) noexcept
+void Camera::setWidth(int width)
 {
-	m_Yaw -= times * m_RotationSpeed;
-	m_ViewDirection = getDirectionFromPitchAndYaw();
+	planeWidth = float(width);
+	m_InvWidth = 1.0f / planeWidth;
+	aspectRatio = float(planeWidth) / planeHeight;
 	isDirty = true;
 }
 
-void Camera::ChangeFOV(float fov) noexcept
+void Camera::setHeight(int height)
 {
-	if (fov < 20.f)
-		fov = 20.f;
-	else if (fov > 160.f)
-		fov = 160.f;
-	m_FOV.x = m_FOV.y = fov;
-	m_FOV_Distance = tanf(glm::radians(fov * 0.5f));
+	planeHeight = float(height);
+	m_InvHeight = (float)1.0f / float(height);
+	aspectRatio = float(planeWidth) / planeHeight;
 	isDirty = true;
 }
 
-const float &Camera::GetFOV() const noexcept { return m_FOV.x; }
-
-vec3 Camera::getDirectionFromPitchAndYaw() noexcept
+void Camera::setDimensions(glm::ivec2 dims)
 {
-	return vec3(sinf(m_Yaw) * cosf(m_Pitch), sinf(m_Pitch), -1.0f * cosf(m_Yaw) * cosf(m_Pitch));
+	planeWidth = float(dims.x);
+	planeHeight = float(dims.y);
+
+	m_InvWidth = 1.0f / planeWidth;
+	m_InvHeight = 1.0f / planeHeight;
+	aspectRatio = planeWidth / planeHeight;
+	isDirty = true;
 }
 
-const float &Camera::GetPitch() const noexcept { return m_Pitch; }
+void Camera::updateGPUBuffer()
+{
+	using namespace cl;
+	if (isDirty)
+	{
+		if (gpuBuffer == nullptr)
+			gpuBuffer = new Buffer(sizeof(CLCamera));
 
-const float &Camera::GetYaw() const noexcept { return m_Yaw; }
+		auto *pointer = gpuBuffer->GetHostPtr<CLCamera>();
+
+		const glm::vec3 u = normalize(cross(forward, vec3(0, 1, 0)));
+		const glm::vec3 v = normalize(cross(u, forward));
+
+		pointer->origin = vec4(position, 0.0f);
+		pointer->viewDirection = vec4(forward, 0.0f);
+		pointer->vertical = vec4(v * fovDistance, 0.0f);
+		pointer->horizontal = vec4(u * fovDistance * aspectRatio, 0.0f);
+		pointer->viewDistance = fovDistance;
+		pointer->invWidth = m_InvWidth;
+		pointer->invHeight = m_InvHeight;
+		pointer->aspectRatio = aspectRatio;
+		gpuBuffer->CopyToDevice(false);
+	}
+
+	isDirty = false;
+}
+
+std::future<void> Camera::updateGPUBufferAsync()
+{
+	return std::async([this]() -> void { updateGPUBuffer(); });
+}
+cl::Buffer *Camera::getGPUBuffer() { return gpuBuffer; }
+
 } // namespace core

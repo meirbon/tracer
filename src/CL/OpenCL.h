@@ -192,11 +192,8 @@ class Buffer;
 class Kernel
 {
   public:
-	// constructor / destructor
-	Kernel(const char *file, const char *entryPoint, std::tuple<size_t, size_t, size_t> workSize,
-		   std::tuple<size_t, size_t, size_t> localSize);
-	// default worksize
-
+	Kernel() = default;
+	Kernel(const char *file, const char *entryPoint, std::tuple<size_t, size_t, size_t> workSize);
 	~Kernel();
 
 	// get / set
@@ -215,7 +212,7 @@ class Kernel
 
 	void Run(Buffer *buffer);
 
-	void Run(const size_t count);
+	void Run(size_t count);
 
 	static void SyncQueue();
 
@@ -242,13 +239,6 @@ class Kernel
 		m_WorkSize[2] = z;
 	}
 
-	inline void SetLocalSize(size_t x, size_t y, size_t z)
-	{
-		m_LocalSize[0] = x;
-		m_LocalSize[1] = y;
-		m_LocalSize[2] = z;
-	}
-
 	static bool InitCL();
 
   private:
@@ -262,7 +252,6 @@ class Kernel
 	static char *m_Log;
 
 	size_t *m_WorkSize;
-	size_t *m_LocalSize;
 
   public:
 	static bool canDoInterop;

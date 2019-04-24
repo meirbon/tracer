@@ -21,7 +21,7 @@ PathTracer::PathTracer(WorldScene *scene, int width, int height, Camera *camera,
 	: m_Scene(scene), m_Width(width), m_Height(height), m_SkyBox(skyBox), m_Camera(camera),
 	  m_SkyboxEnabled(skyBox != nullptr)
 {
-	modes = {"NEE", "IS", "NEE_IS", "NEE_MIS", "Reference MF", "Reference"};
+	m_Modes = {"NEE", "IS", "NEE_IS", "NEE_MIS", "Reference MF", "Reference"};
 	m_Pixels = new glm::vec3[m_Width * m_Height];
 	m_Energy = new float[m_Width * m_Height];
 
@@ -130,7 +130,7 @@ void PathTracer::Render(Surface *output)
 						const int pixel_x = x + tile_x * TILE_WIDTH;
 
 						uint depth = 0;
-						Ray r = m_Camera->GenerateRandomRay(float(pixel_x), float(pixel_y), *rngPointer);
+						Ray r = m_Camera->generateRandomRay(float(pixel_x), float(pixel_y), *rngPointer);
 						auto color = Trace(r, depth, 1.f, *rngPointer) * EFactor;
 
 						const int idx = pixel_x + pixel_y * m_Width;
@@ -162,7 +162,7 @@ void PathTracer::Render(Surface *output)
 
 glm::vec3 PathTracer::Trace(Ray &r, uint &depth, float refractionIndex, RandomGenerator &rng)
 {
-	glm::vec3 E = glm::vec3(0.0f);
+	auto E = vec3(0.0f);
 	for (int i = 0; i < SAMPLE_COUNT; i++)
 	{
 		glm::vec3 newSample;
@@ -228,46 +228,39 @@ glm::vec3 PathTracer::SampleNEE(Ray &r, RandomGenerator &rng) const
 		const glm::vec3 p = r.GetHitpoint();
 		const auto mat = m_Materials->GetMaterial(r.obj->materialIdx);
 
-		if (mat.IsLight())
+		if (mat.type == Light)
 		{
 			if (specular)
 			{
-				E += throughput * mat.GetEmission();
+				E += throughput * mat.emission;
 			}
 			break;
 		}
 
-		const glm::vec3 albedoColor = mat.GetAlbedoColor(r.obj, p);
+		const glm::vec3 albedoColor = mat.albedo;
 		vec3 normal = r.normal;
 		const bool flipNormal = dot(normal, r.direction) > 0.0f;
 		if (flipNormal)
 			normal *= -1.0f;
 
-		const bool isDiffuse = mat.IsDiffuse();
-		const bool isReflective = mat.IsReflective();
-		const bool isTransparent = mat.IsTransparent();
 		specular = true;
 
-		if (isTransparent)
+		switch (mat.type)
 		{
-			throughput *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
-			continue;
-		}
-
-		if (isDiffuse && isReflective)
-		{
-			if (rng.Rand(1.0f) < mat.GetSpecular())
-			{
-				throughput *= albedoColor;
-				r = r.Reflect(p, normal);
-				continue;
-			}
-		}
-		else if (isReflective)
-		{
+		case (Light):
+			break;
+		case (Lambert):
+			specular = false;
+			break;
+		case (Specular):
 			throughput = throughput * albedoColor;
 			r = r.Reflect(p, normal);
 			continue;
+		case (Fresnel):
+			throughput *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
+			continue;
+		default:
+			break;
 		}
 
 		r = r.DiffuseReflection(p, normal, rng);
@@ -298,7 +291,7 @@ glm::vec3 PathTracer::SampleNEE(Ray &r, RandomGenerator &rng) const
 				{
 					const float SolidAngle = LNdotL * (light->m_Area / squaredDistance);
 					const auto m = m_Materials->GetMaterial(light->materialIdx);
-					const vec3 Ld = BRDF * m.GetEmission() * SolidAngle * NdotL / NEEpdf;
+					const vec3 Ld = BRDF * m.emission * SolidAngle * NdotL / NEEpdf;
 
 					E += throughput * Ld;
 				}
@@ -340,42 +333,33 @@ glm::vec3 PathTracer::SampleIS(Ray &r, RandomGenerator &rng) const
 		const vec3 p = r.GetHitpoint();
 		const auto mat = m_Materials->GetMaterial(r.obj->materialIdx);
 
-		if (mat.IsLight())
+		if (mat.type == Light)
 		{
-			E += throughput * mat.GetEmission();
+			E += throughput * mat.emission;
 			break;
 		}
 
-		const glm::vec3 albedoColor = mat.GetAlbedoColor(r.obj, p);
+		const glm::vec3 albedoColor = mat.albedo;
 		vec3 normal = r.normal;
 		const bool flipNormal = dot(normal, r.direction) > 0.0f;
 		if (flipNormal)
 			normal *= -1.0f;
 
-		const bool isDiffuse = mat.IsDiffuse();
-		const bool isReflective = mat.IsReflective();
-		const bool isTransparent = mat.IsTransparent();
-
-		if (isTransparent)
+		switch (mat.type)
 		{
-			throughput *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
-			continue;
-		}
-
-		if (isDiffuse && isReflective)
-		{
-			if (rng.Rand(1.0f) < mat.GetSpecular())
-			{
-				throughput *= albedoColor;
-				r = r.Reflect(p, normal);
-				continue;
-			}
-		}
-		else if (isReflective)
-		{
-			throughput *= albedoColor;
+		case (Light):
+			break;
+		case (Lambert):
+			break;
+		case (Specular):
+			throughput = throughput * albedoColor;
 			r = r.Reflect(p, normal);
 			continue;
+		case (Fresnel):
+			throughput *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
+			continue;
+		default:
+			break;
 		}
 
 		r = r.CosineWeightedDiffuseReflection(p, normal, rng);
@@ -417,46 +401,36 @@ glm::vec3 PathTracer::SampleNEE_IS(Ray &r, RandomGenerator &rng) const
 		const vec3 p = r.GetHitpoint();
 		const auto mat = m_Materials->GetMaterial(r.obj->materialIdx);
 
-		if (mat.IsLight())
+		if (mat.type == 1)
 		{
 			if (specular)
 			{
-				E += throughput * mat.GetEmission();
+				E += throughput * mat.emission;
 			}
 			break;
 		}
 
-		const glm::vec3 albedoColor = mat.GetAlbedoColor(r.obj, p);
+		const glm::vec3 albedoColor = mat.albedo;
 		vec3 normal = r.normal;
 		const bool flipNormal = dot(normal, r.direction) > 0.0f;
 		if (flipNormal)
 			normal *= -1.0f;
 
-		const bool isDiffuse = mat.IsDiffuse();
-		const bool isReflective = mat.IsReflective();
-		const bool isTransparent = mat.IsTransparent();
-		specular = true;
-
-		if (isTransparent)
+		switch (mat.type)
 		{
-			throughput *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
-			continue;
-		}
-
-		if (isDiffuse && isReflective)
-		{
-			if (rng.Rand(1.0f) < mat.GetSpecular())
-			{
-				throughput *= albedoColor;
-				r = r.Reflect(p, normal);
-				continue;
-			}
-		}
-		else if (isReflective)
-		{
-			throughput *= albedoColor;
+		case (Light):
+			break;
+		case (Lambert):
+			break;
+		case (Specular):
+			throughput = throughput * albedoColor;
 			r = r.Reflect(p, normal);
 			continue;
+		case (Fresnel):
+			throughput *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
+			continue;
+		default:
+			break;
 		}
 
 		r = r.CosineWeightedDiffuseReflection(p, normal, rng);
@@ -488,7 +462,7 @@ glm::vec3 PathTracer::SampleNEE_IS(Ray &r, RandomGenerator &rng) const
 				{
 					const float SolidAngle = LNdotL * light->m_Area / squaredDistance;
 					const auto m = m_Materials->GetMaterial(light->materialIdx);
-					const vec3 Ld = BRDF * m.GetEmission() * SolidAngle * NdotL / NEEpdf;
+					const vec3 Ld = BRDF * m.emission * SolidAngle * NdotL / NEEpdf;
 
 					E += throughput * Ld;
 				}
@@ -531,15 +505,15 @@ glm::vec3 PathTracer::SampleNEE_MIS(Ray &r, RandomGenerator &rng) const
 		const vec3 p = r.GetHitpoint();
 		const auto mat = m_Materials->GetMaterial(r.obj->materialIdx);
 
-		if (mat.IsLight())
+		if (mat.type == 1)
 		{
 			if (depth <= 0)
 			{
-				E += throughput * mat.GetEmission();
+				E += throughput * mat.emission;
 			}
 			else if (specular)
 			{
-				E += throughput * mat.GetEmission() * tUpdate;
+				E += throughput * mat.emission * tUpdate;
 			}
 			else
 			{
@@ -557,7 +531,7 @@ glm::vec3 PathTracer::SampleNEE_MIS(Ray &r, RandomGenerator &rng) const
 				const float SolidAngle = LNdotL * light->m_Area / squaredDistance;
 				const float lightPDF = 1.0f / SolidAngle;
 				const float brdfPDF = NdotL / PI;
-				const vec3 Ld = BRDF * mat.GetEmission() * NdotL * InversePDFnee;
+				const vec3 Ld = BRDF * mat.emission * NdotL * InversePDFnee;
 
 				if (lightPDF > 0.0f && brdfPDF > 0.0f)
 				{
@@ -572,7 +546,7 @@ glm::vec3 PathTracer::SampleNEE_MIS(Ray &r, RandomGenerator &rng) const
 		throughput *= tUpdate;
 		tUpdate = vec3(1.0f);
 
-		const glm::vec3 albedoColor = mat.GetAlbedoColor(r.obj, p);
+		const glm::vec3 albedoColor = mat.albedo;
 		normal = r.normal;
 		const bool flipNormal = dot(normal, r.direction) > 0.0f;
 		if (flipNormal)
@@ -580,33 +554,21 @@ glm::vec3 PathTracer::SampleNEE_MIS(Ray &r, RandomGenerator &rng) const
 
 		BRDF = albedoColor * glm::one_over_pi<float>();
 
-		const bool isDiffuse = mat.IsDiffuse();
-		const bool isReflective = mat.IsReflective();
-		const bool isTransparent = mat.IsTransparent();
-
-		if (isTransparent)
+		switch (mat.type)
 		{
-			tUpdate *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
-			specular = true;
-			continue;
-		}
-
-		if (isDiffuse && isReflective)
-		{
-			if (rng.Rand(1.0f) < mat.GetSpecular())
-			{
-				tUpdate *= albedoColor;
-				r = r.Reflect(p, normal);
-				specular = true;
-				continue;
-			}
-		}
-		else if (isReflective)
-		{
-			tUpdate *= albedoColor;
+		case (Light):
+			break;
+		case (Lambert):
+			break;
+		case (Specular):
+			throughput = throughput * albedoColor;
 			r = r.Reflect(p, normal);
-			specular = true;
 			continue;
+		case (Fresnel):
+			throughput *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
+			continue;
+		default:
+			break;
 		}
 
 		// NEE
@@ -634,7 +596,7 @@ glm::vec3 PathTracer::SampleNEE_MIS(Ray &r, RandomGenerator &rng) const
 				{
 					const float SolidAngle = LNdotL * light->m_Area / squaredDistance;
 					const auto m = m_Materials->GetMaterial(light->materialIdx);
-					const vec3 Ld = BRDF * m.GetEmission() * NdotL / NEEpdf;
+					const vec3 Ld = BRDF * m.emission * NdotL / NEEpdf;
 
 					const float bPDF = NdotL / PI;
 					const float lightPDF = 1.0f / SolidAngle;
@@ -663,7 +625,7 @@ glm::vec3 PathTracer::SampleNEE_MIS(Ray &r, RandomGenerator &rng) const
 #endif
 	}
 	return E;
-}
+} // namespace core
 
 glm::vec3 PathTracer::SampleSkyBox(const glm::vec3 &dir) const
 {
@@ -699,43 +661,33 @@ glm::vec3 PathTracer::SampleReference(Ray &r, RandomGenerator &rng) const
 		const vec3 p = r.GetHitpoint();
 		const auto mat = m_Materials->GetMaterial(r.obj->materialIdx);
 
-		if (mat.IsLight())
+		if (mat.type == Light)
 		{
-			E += throughput * mat.GetEmission();
+			E += throughput * mat.emission;
 			break;
 		}
 
-		const glm::vec3 albedoColor = mat.GetAlbedoColor(r.obj, p);
+		const glm::vec3 albedoColor = mat.albedo;
 		vec3 normal = r.normal;
 		const bool flipNormal = dot(normal, r.direction) > 0.0f;
 		if (flipNormal)
 			normal *= -1.0f;
 
-		const bool isTransparent = mat.IsTransparent();
-
-		if (isTransparent)
+		switch (mat.type)
 		{
-			throughput *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
-			continue;
-		}
-
-		const bool isDiffuse = mat.IsDiffuse();
-		const bool isReflective = mat.IsReflective();
-
-		if (isDiffuse && isReflective)
-		{
-			if (rng.Rand(1.0f) < mat.GetSpecular())
-			{
-				throughput *= albedoColor;
-				r = r.Reflect(p, normal);
-				continue;
-			}
-		}
-		else if (isReflective)
-		{
-			throughput *= albedoColor;
+		case (Light):
+			break;
+		case (Lambert):
+			break;
+		case (Specular):
+			throughput = throughput * albedoColor;
 			r = r.Reflect(p, normal);
 			continue;
+		case (Fresnel):
+			throughput *= albedoColor * Refract(flipNormal, mat, normal, p, r.t, r, rng);
+			continue;
+		default:
+			break;
 		}
 
 		r = r.DiffuseReflection(p, normal, rng);
@@ -863,13 +815,13 @@ glm::vec3 PathTracer::SampleReferenceMicrofacet(Ray &r, RandomGenerator &rng) co
 		const auto mat = m_Materials->GetMaterial(matIdx);
 		const auto mf = m_Materials->GetMicrofacet(matIdx);
 
-		if (mat.IsLight())
+		if (mat.type == 1)
 		{
-			E += throughput * mat.GetEmission();
+			E += throughput * mat.emission;
 			break;
 		}
 
-		const glm::vec3 albedoColor = mat.GetAlbedoColor(r.obj, p);
+		const glm::vec3 albedoColor = mat.albedo;
 		vec3 normal = r.normal;
 		const bool flipNormal = dot(normal, r.direction) > 0.0f;
 		if (flipNormal)
@@ -879,7 +831,7 @@ glm::vec3 PathTracer::SampleReferenceMicrofacet(Ray &r, RandomGenerator &rng) co
 		wmLocal = mf.sampleWm(rng);
 		wm = rng.localToWorldMicro(wmLocal, u, v, w);
 
-		if (mat.IsTransparent())
+		if (mat.type == Fresnel)
 		{
 			float n1, n2;
 			glm::vec3 absorption = vec3(1.0f);
@@ -972,9 +924,9 @@ glm::vec3 PathTracer::SampleNEEMicrofacet(Ray &r, RandomGenerator &rng) const
 		const auto mat = m_Materials->GetMaterial(matIdx);
 		const auto mf = m_Materials->GetMicrofacet(matIdx);
 
-		if (mat.IsLight())
+		if (mat.type == 1)
 		{
-			E += throughput * mat.GetEmission();
+			E += throughput * mat.emission;
 			break;
 		}
 
@@ -988,7 +940,7 @@ glm::vec3 PathTracer::SampleNEEMicrofacet(Ray &r, RandomGenerator &rng) const
 		wm = rng.localToWorldMicro(wmLocal, u, v, w);
 		wi = -r.direction;
 
-		if (mat.IsTransparent())
+		if (mat.type == Fresnel)
 		{
 			float n1, n2;
 			glm::vec3 absorption = vec3(1.0f);
@@ -1041,7 +993,7 @@ glm::vec3 PathTracer::SampleNEEMicrofacet(Ray &r, RandomGenerator &rng) const
 			wo = rng.localToWorldMicro(woLocal, u, v, w);
 			const float weight = mf.weight(woLocal, wiLocal, wmLocal);
 
-			throughput *= mat.GetAlbedoColor(r.obj, p) * weight;
+			throughput *= mat.albedo * weight;
 			r = Ray(p + EPSILON * wo, wo);
 		}
 		else
@@ -1077,8 +1029,7 @@ glm::vec3 PathTracer::SampleNEEMicrofacet(Ray &r, RandomGenerator &rng) const
 						const float neeWeight = 1.0f - mf.weight(L, wi, wm);
 						if (neeWeight > 0.0f)
 						{
-							const vec3 Ld = mat.GetAlbedoColor(r.obj, p) * weight * lightMat.GetEmission() *
-											SolidAngle * NdotL / NEEpdf;
+							const vec3 Ld = mat.albedo * weight * lightMat.emission * SolidAngle * NdotL / NEEpdf;
 							E += throughput * Ld * neeWeight;
 						}
 					}
@@ -1086,7 +1037,7 @@ glm::vec3 PathTracer::SampleNEEMicrofacet(Ray &r, RandomGenerator &rng) const
 			}
 			// NEE
 
-			throughput *= mat.GetAlbedoColor(r.obj, p) * weight;
+			throughput *= mat.albedo * weight;
 			r = Ray(p + EPSILON * wo, wo);
 		}
 	}

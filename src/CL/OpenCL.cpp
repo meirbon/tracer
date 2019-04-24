@@ -199,8 +199,7 @@ static char *loadSource(const char *file, size_t *size)
 	return t;
 }
 
-Kernel::Kernel(const char *file, const char *entryPoint, std::tuple<size_t, size_t, size_t> workSize,
-			   std::tuple<size_t, size_t, size_t> localSize)
+Kernel::Kernel(const char *file, const char *entryPoint, std::tuple<size_t, size_t, size_t> workSize)
 {
 	if (!m_Initialized)
 	{
@@ -221,12 +220,12 @@ Kernel::Kernel(const char *file, const char *entryPoint, std::tuple<size_t, size
 
 	if (error != CL_SUCCESS)
 	{
-		if (!m_Log)
-			m_Log = new char[100 * 1024]; // can be quite large
-		m_Log[0] = 0;
-		clGetProgramBuildInfo(m_Program, getFirstDevice(m_Context), CL_PROGRAM_BUILD_LOG, 100 * 1024, m_Log, nullptr);
-		m_Log[2048] = 0; // truncate very long logs
-		FatalError(__FILE__, __LINE__, m_Log, "Build error");
+	  	auto log = std::vector<char>(100 * 1024);
+		clGetProgramBuildInfo(m_Program, getFirstDevice(m_Context), CL_PROGRAM_BUILD_LOG, 100 * 1024, log.data(), nullptr);
+
+		char buffer[256];
+		sprintf(buffer, "Build error, file: %s", file);
+		FatalError(__FILE__, __LINE__, log.data(), buffer);
 	}
 	m_Kernel = clCreateKernel(m_Program, entryPoint, &error);
 	CheckCL(error, __FILE__, __LINE__);
@@ -235,11 +234,6 @@ Kernel::Kernel(const char *file, const char *entryPoint, std::tuple<size_t, size
 	m_WorkSize[0] = std::get<0>(workSize);
 	m_WorkSize[1] = std::get<1>(workSize);
 	m_WorkSize[2] = std::get<2>(workSize);
-
-	m_LocalSize = new size_t[3];
-	m_LocalSize[0] = std::get<0>(localSize);
-	m_LocalSize[1] = std::get<1>(localSize);
-	m_LocalSize[2] = std::get<2>(localSize);
 }
 
 Kernel::~Kernel()
@@ -250,7 +244,6 @@ Kernel::~Kernel()
 		clReleaseProgram(m_Program);
 
 	delete[] m_WorkSize;
-	delete[] m_LocalSize;
 }
 
 bool Kernel::InitCL()
@@ -430,7 +423,7 @@ void Kernel::SetArgument(int idx, glm::vec4 value)
 void Kernel::Run()
 {
 	glFinish();
-	CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, 0, m_WorkSize, m_LocalSize, 0, 0, 0), __FILE__, __LINE__);
+	CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, 0, m_WorkSize, 0, 0, 0, 0), __FILE__, __LINE__);
 }
 
 void Kernel::Run(cl_mem *buffers, int count)
@@ -439,13 +432,13 @@ void Kernel::Run(cl_mem *buffers, int count)
 	if (Kernel::canDoInterop)
 	{
 		CheckCL(clEnqueueAcquireGLObjects(m_Queue, count, buffers, 0, 0, 0), __FILE__, __LINE__);
-		CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, m_LocalSize, 0, 0, 0), __FILE__,
+		CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0), __FILE__,
 				__LINE__);
 		CheckCL(clEnqueueReleaseGLObjects(m_Queue, count, buffers, 0, 0, 0), __FILE__, __LINE__);
 	}
 	else
 	{
-		CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, m_LocalSize, 0, 0, 0), __FILE__,
+		CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0), __FILE__,
 				__LINE__);
 	}
 }
@@ -456,18 +449,18 @@ void Kernel::Run(Buffer *buffer)
 	if (Kernel::canDoInterop)
 	{
 		CheckCL(clEnqueueAcquireGLObjects(m_Queue, 1, buffer->GetDevicePtr(), 0, 0, 0), __FILE__, __LINE__);
-		CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, m_LocalSize, 0, 0, 0), __FILE__,
+		CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0), __FILE__,
 				__LINE__);
 		CheckCL(clEnqueueReleaseGLObjects(m_Queue, 1, buffer->GetDevicePtr(), 0, 0, 0), __FILE__, __LINE__);
 	}
 	else
 	{
-		CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, m_LocalSize, 0, 0, 0), __FILE__,
+		CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0), __FILE__,
 				__LINE__);
 	}
 }
 
-void Kernel::Run(const size_t count)
+void Kernel::Run(size_t count)
 {
 	CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 1, 0, &count, 0, 0, 0, 0), __FILE__, __LINE__);
 }

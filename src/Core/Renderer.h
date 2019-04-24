@@ -26,7 +26,7 @@ class Renderer
 
 	inline virtual void Reset() {}
 
-	inline virtual int GetSamples() const { return 0; }
+	inline virtual int GetSamples() const { return m_Samples; }
 
 	virtual void Resize(gl::Texture *newOutput) = 0;
 
@@ -34,7 +34,7 @@ class Renderer
 
 	virtual void SwitchSkybox() = 0;
 
-	inline const Mode &GetMode() const noexcept { return m_Mode; }
+	inline const int &GetMode() const noexcept { return m_Mode; }
 
 	inline virtual const char *GetModeString() const noexcept
 	{
@@ -58,13 +58,14 @@ class Renderer
 		}
 	}
 
-	virtual void SetMode(Mode mode) { m_Mode = mode; }
+	virtual void SetMode(int mode) { m_Mode = mode; }
 
-	virtual void SetMode(std::string){};
-	virtual const std::vector<const char*> &GetModes() { return modes; };
+	virtual void SetMode(const std::string&){};
+	virtual const std::vector<const char*> &GetModes() { return m_Modes; };
 
   protected:
-	Mode m_Mode = Reference;
-	std::vector<const char*> modes;
+	int m_Mode = Reference;
+	int m_Samples = 0;
+	std::vector<const char*> m_Modes;
 };
 } // namespace core

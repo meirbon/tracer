@@ -12,11 +12,11 @@ class BVHRenderer : public Renderer
 {
   public:
 	BVHRenderer(prims::WorldScene *scene, Camera *camera, int width, int height);
-	~BVHRenderer();
+	~BVHRenderer() override;
 
-	virtual void Render(Surface *output) override;
-	virtual void Resize(gl::Texture *newOutput) override;
-	virtual void SwitchSkybox() override;
+	void Render(Surface *output) override;
+	void Resize(gl::Texture *newOutput) override;
+	void SwitchSkybox() override;
 
   private:
 	Camera *m_Camera;
