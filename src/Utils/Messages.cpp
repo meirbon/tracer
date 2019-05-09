@@ -9,7 +9,7 @@ void FatalError(const char *file, int line, const char *message)
 {
 	std::string msg = file;
 	msg += ", line ";
-	msg += line;
+	msg += std::to_string(line);
 	msg += ":\n";
 	msg += message;
 	const auto *output = msg.c_str();
@@ -25,7 +25,7 @@ void FatalError(const char *file, int line, const char *message, const char *con
 	msg += ", ";
 	msg += file;
 	msg += ", line ";
-	msg += line;
+	msg += std::to_string(line);
 	msg += ":\n";
 	msg += message;
 	const auto *output = msg.c_str();
@@ -38,7 +38,7 @@ void WarningMessage(const char *file, int line, const char *message)
 {
 	std::string msg = file;
 	msg += ", line ";
-	msg += line;
+	msg += std::to_string(line);
 	msg += ":\n";
 	msg += message;
 	const auto *output = msg.c_str();
@@ -53,7 +53,7 @@ void WarningMessage(const char *file, int line, const char *message, const char 
 	msg += ", ";
 	msg += file;
 	msg += ", line ";
-	msg += line;
+	msg += std::to_string(line);
 	msg += ":\n";
 	msg += message;
 	const auto *output = msg.c_str();

@@ -51,7 +51,7 @@ static cl_int getPlatformID(cl_platform_id *platform)
 	}
 
 	clPlatformIDs = (cl_platform_id *)malloc(num_platforms * sizeof(cl_platform_id));
-	CheckCL(clGetPlatformIDs(num_platforms, clPlatformIDs, nullptr), __FILE__, __LINE__);
+	CHECKCL(clGetPlatformIDs(num_platforms, clPlatformIDs, nullptr));
 #ifdef USE_CPU_DEVICE
 	cl_uint deviceType[2] = {CL_DEVICE_TYPE_CPU, CL_DEVICE_TYPE_CPU};
 	char *deviceOrder[2][3] = {{"", "", ""}, {"", "", ""}};
@@ -65,7 +65,7 @@ static cl_int getPlatformID(cl_platform_id *platform)
 	printf("available OpenCL platforms:\n");
 	for (cl_uint i = 0; i < num_platforms; ++i)
 	{
-		CheckCL(clGetPlatformInfo(clPlatformIDs[i], CL_PLATFORM_NAME, 1024, &chBuffer, nullptr), __FILE__, __LINE__);
+		CHECKCL(clGetPlatformInfo(clPlatformIDs[i], CL_PLATFORM_NAME, 1024, &chBuffer, nullptr));
 		printf("#%i: %s\n", i, chBuffer);
 	}
 	for (cl_uint j = 0; j < 2; j++)
@@ -80,8 +80,7 @@ static cl_int getPlatformID(cl_platform_id *platform)
 					continue;
 				}
 
-				CheckCL(clGetPlatformInfo(clPlatformIDs[i], CL_PLATFORM_NAME, 1024, &chBuffer, nullptr), __FILE__,
-						__LINE__);
+				CHECKCL(clGetPlatformInfo(clPlatformIDs[i], CL_PLATFORM_NAME, 1024, &chBuffer, nullptr));
 				if (deviceOrder[j][k][0])
 				{
 					if (!strstr(chBuffer, deviceOrder[j][k]))
@@ -215,13 +214,15 @@ Kernel::Kernel(const char *file, const char *entryPoint, std::tuple<size_t, size
 	error = clBuildProgram(m_Program, 0, nullptr,
 						   "-cl-fast-relaxed-math -cl-mad-enable "
 						   "-cl-denorms-are-zero -cl-no-signed-zeros "
-						   "-cl-unsafe-math-optimizations -cl-finite-math-only",
+						   "-cl-unsafe-math-optimizations -cl-finite-math-only "
+						   "-cl-strict-aliasing",
 						   nullptr, nullptr);
 
 	if (error != CL_SUCCESS)
 	{
-	  	auto log = std::vector<char>(100 * 1024);
-		clGetProgramBuildInfo(m_Program, getFirstDevice(m_Context), CL_PROGRAM_BUILD_LOG, 100 * 1024, log.data(), nullptr);
+		auto log = std::vector<char>(100 * 1024);
+		clGetProgramBuildInfo(m_Program, getFirstDevice(m_Context), CL_PROGRAM_BUILD_LOG, 100 * 1024, log.data(),
+							  nullptr);
 
 		char buffer[256];
 		sprintf(buffer, "Build error, file: %s", file);
@@ -372,7 +373,7 @@ bool Kernel::InitCL()
 	// print device name
 	char device_string[1024];
 	clGetDeviceInfo(devices[deviceUsed], CL_DEVICE_NAME, 1024, &device_string, nullptr);
-	printf("Device # %u, %s\n", deviceUsed, device_string);
+	std::cout << "Device #" << deviceUsed << ", " << device_string << std::endl;
 
 	size_t p_size;
 	size_t l_size;
@@ -392,78 +393,85 @@ bool Kernel::InitCL()
 	return result;
 }
 
-void Kernel::SetArgument(int idx, cl_mem *buffer) { clSetKernelArg(m_Kernel, idx, sizeof(cl_mem), buffer); }
+cl_int Kernel::SetArgument(int idx, cl_mem *buffer) { return clSetKernelArg(m_Kernel, idx, sizeof(cl_mem), buffer); }
 
-void Kernel::SetArgument(int idx, Buffer *buffer)
+cl_int Kernel::SetArgument(int idx, Buffer *buffer)
 {
-	clSetKernelArg(m_Kernel, idx, sizeof(cl_mem), buffer->GetDevicePtr());
+	return clSetKernelArg(m_Kernel, idx, sizeof(cl_mem), buffer->GetDevicePtr());
 }
 
-void Kernel::SetArgument(int idx, int value) { clSetKernelArg(m_Kernel, idx, sizeof(int), &value); }
+cl_int Kernel::SetArgument(int idx, int value) { return clSetKernelArg(m_Kernel, idx, sizeof(int), &value); }
 
-void Kernel::SetArgument(int idx, unsigned int value) { clSetKernelArg(m_Kernel, idx, sizeof(unsigned int), &value); }
-
-void Kernel::SetArgument(int idx, float value) { clSetKernelArg(m_Kernel, idx, sizeof(float), &value); }
-
-void Kernel::SetArgument(int idx, glm::vec2 value)
+cl_int Kernel::SetArgument(int idx, unsigned int value)
 {
-	clSetKernelArg(m_Kernel, idx, sizeof(vec2), glm::value_ptr(value));
+	return clSetKernelArg(m_Kernel, idx, sizeof(unsigned int), &value);
 }
 
-void Kernel::SetArgument(int idx, glm::vec3 value)
+cl_int Kernel::SetArgument(int idx, float value) { return clSetKernelArg(m_Kernel, idx, sizeof(float), &value); }
+
+cl_int Kernel::SetArgument(int idx, glm::vec2 value)
 {
-	clSetKernelArg(m_Kernel, idx, sizeof(vec3), glm::value_ptr(value));
+	return clSetKernelArg(m_Kernel, idx, sizeof(vec2), glm::value_ptr(value));
 }
 
-void Kernel::SetArgument(int idx, glm::vec4 value)
+cl_int Kernel::SetArgument(int idx, glm::vec3 value)
 {
-	clSetKernelArg(m_Kernel, idx, sizeof(vec4), glm::value_ptr(value));
+	return clSetKernelArg(m_Kernel, idx, sizeof(vec3), glm::value_ptr(value));
 }
 
-void Kernel::Run()
+cl_int Kernel::SetArgument(int idx, glm::vec4 value)
+{
+	return clSetKernelArg(m_Kernel, idx, sizeof(vec4), glm::value_ptr(value));
+}
+
+cl_int Kernel::Run()
 {
 	glFinish();
-	CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, 0, m_WorkSize, 0, 0, 0, 0), __FILE__, __LINE__);
+	return clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, 0, m_WorkSize, 0, 0, 0, 0);
 }
 
-void Kernel::Run(cl_mem *buffers, int count)
+cl_int Kernel::Run(cl_mem *buffers, int count)
 {
-	glFinish();
-	if (Kernel::canDoInterop)
-	{
-		CheckCL(clEnqueueAcquireGLObjects(m_Queue, count, buffers, 0, 0, 0), __FILE__, __LINE__);
-		CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0), __FILE__,
-				__LINE__);
-		CheckCL(clEnqueueReleaseGLObjects(m_Queue, count, buffers, 0, 0, 0), __FILE__, __LINE__);
-	}
-	else
-	{
-		CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0), __FILE__,
-				__LINE__);
-	}
-}
+	cl_int err = CL_SUCCESS;
 
-void Kernel::Run(Buffer *buffer)
-{
 	glFinish();
 	if (Kernel::canDoInterop)
 	{
-		CheckCL(clEnqueueAcquireGLObjects(m_Queue, 1, buffer->GetDevicePtr(), 0, 0, 0), __FILE__, __LINE__);
-		CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0), __FILE__,
-				__LINE__);
-		CheckCL(clEnqueueReleaseGLObjects(m_Queue, 1, buffer->GetDevicePtr(), 0, 0, 0), __FILE__, __LINE__);
+		err = clEnqueueAcquireGLObjects(m_Queue, count, buffers, 0, 0, 0);
+		err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0);
+		err = clEnqueueReleaseGLObjects(m_Queue, count, buffers, 0, 0, 0);
 	}
 	else
 	{
-		CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0), __FILE__,
-				__LINE__);
+		err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0);
 	}
+	return err;
 }
 
-void Kernel::Run(size_t count)
+cl_int Kernel::Run(Buffer *buffer)
 {
-	CheckCL(clEnqueueNDRangeKernel(m_Queue, m_Kernel, 1, 0, &count, 0, 0, 0, 0), __FILE__, __LINE__);
+	cl_int err = CL_SUCCESS;
+	glFinish();
+	if (Kernel::canDoInterop)
+	{
+		err = clEnqueueAcquireGLObjects(m_Queue, 1, buffer->GetDevicePtr(), 0, 0, 0);
+		err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0);
+		err = clEnqueueReleaseGLObjects(m_Queue, 1, buffer->GetDevicePtr(), 0, 0, 0);
+	}
+	else
+	{
+		err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0);
+	}
+
+	return err;
 }
 
-void Kernel::SyncQueue() { clFinish(m_Queue); }
+cl_int Kernel::Run(size_t count)
+{
+	cl_int err = CL_SUCCESS;
+	err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 1, 0, &count, 0, 0, 0, 0);
+	return err;
+}
+
+cl_int Kernel::SyncQueue() { return clFinish(m_Queue); }
 } // namespace cl

@@ -32,6 +32,7 @@ namespace cl
 inline bool CheckCL(cl_int result, const char *file, int line)
 {
 	using namespace utils;
+
 	switch (result)
 	{
 	case (CL_SUCCESS):
@@ -187,6 +188,8 @@ inline bool CheckCL(cl_int result, const char *file, int line)
 	return false;
 }
 
+#define CHECKCL(x) CheckCL(x, __FILE__, __LINE__)
+
 class Buffer;
 
 class Kernel
@@ -206,31 +209,31 @@ class Kernel
 	static cl_device_id &GetDevice() { return m_Device; }
 
 	// methods
-	void Run();
+	cl_int Run();
 
-	void Run(cl_mem *buffers, int count = 1);
+	cl_int Run(cl_mem *buffers, int count = 1);
 
-	void Run(Buffer *buffer);
+	cl_int Run(Buffer *buffer);
 
-	void Run(size_t count);
+	cl_int Run(size_t count);
 
-	static void SyncQueue();
+	static cl_int SyncQueue();
 
-	void SetArgument(int idx, cl_mem *buffer);
+	cl_int SetArgument(int idx, cl_mem *buffer);
 
-	void SetArgument(int idx, Buffer *buffer);
+	cl_int SetArgument(int idx, Buffer *buffer);
 
-	void SetArgument(int idx, float value);
+	cl_int SetArgument(int idx, float value);
 
-	void SetArgument(int idx, int value);
+	cl_int SetArgument(int idx, int value);
 
-	void SetArgument(int idx, unsigned int value);
+	cl_int SetArgument(int idx, unsigned int value);
 
-	void SetArgument(int idx, glm::vec2 value);
+	cl_int SetArgument(int idx, glm::vec2 value);
 
-	void SetArgument(int idx, glm::vec3 value);
+	cl_int SetArgument(int idx, glm::vec3 value);
 
-	void SetArgument(int idx, glm::vec4 value);
+	cl_int SetArgument(int idx, glm::vec4 value);
 
 	inline void SetWorkSize(size_t x, size_t y, size_t z)
 	{
