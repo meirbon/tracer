@@ -35,7 +35,10 @@ class GLFWWindow : public Window
 {
   public:
 	GLFWWindow(const char *title, int width, int height, bool fullscreen = false, bool lockMouse = false);
-	~GLFWWindow();
+	~GLFWWindow() override;
+
+	int GetWidth() override;
+	int GetHeight() override;
 
 	void SetSize(int width, int height) override;
 	void SetTitle(const char *title) override;
@@ -69,5 +72,6 @@ class GLFWWindow : public Window
 
   private:
 	GLFWwindow *m_Window;
+	int m_Width, m_Height;
 };
 } // namespace utils

@@ -8,7 +8,8 @@ class RandomGenerator
 {
   public:
 	RandomGenerator() = default;
-	virtual float Rand(float range = 1.0f) { return RandomUint() * 2.3283064365387e-10f * range; }
+	virtual ~RandomGenerator() = default;
+	float Rand(float range = 1.0f) { return RandomUint() * 2.3283064365387e-10f * range; }
 
 	virtual unsigned int RandomUint() = 0;
 

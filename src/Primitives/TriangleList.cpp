@@ -8,12 +8,12 @@ using namespace glm;
 
 static MaterialManager *mInstance = MaterialManager::GetInstance();
 
+namespace prims
+{
 TriangleList::~TriangleList()
 {
 	for (auto &m_Texture : m_Textures)
-	{
 		delete m_Texture;
-	}
 }
 
 void TriangleList::addTriangle(vec3 p0, vec3 p1, vec3 p2, vec3 n0, vec3 n1, vec3 n2, unsigned int matIdx, vec2 t0,
@@ -138,8 +138,8 @@ TriangleList::GPUTextures TriangleList::createTextureBuffer()
 	{
 		unsigned int offset = tColors.size();
 		const vec4 *buffer = tex->GetTextureBuffer();
-		const uint width = tex->GetWidth();
-		const uint height = tex->GetHeight();
+		const uint width = tex->getWidth();
+		const uint height = tex->getHeight();
 		for (uint y = 0; y < height; y++)
 		{
 			for (uint x = 0; x < width; x++)
@@ -315,4 +315,19 @@ unsigned int TriangleList::loadTexture(const std::string &path)
 	m_LoadedTextures[path] = idx;
 	m_Textures.push_back(tex);
 	return idx;
+}
+
+std::vector<Triangle *> TriangleList::getTriangles() const
+{
+	std::vector<Triangle *> triangles(m_Indices.size());
+	for (uint i = 0; i < m_Indices.size(); i++)
+	{
+		const auto &idx = m_Indices.at(i);
+		triangles.push_back(new Triangle(m_Vertices[idx.x], m_Vertices[idx.y], m_Vertices[idx.z], m_Normals[idx.x],
+										 m_Normals[idx.y], m_Normals[idx.z], m_MaterialIdxs[i], m_TexCoords[idx.x],
+										 m_TexCoords[idx.y], m_TexCoords[idx.z]));
+	}
+
+	return triangles;
+}
 }

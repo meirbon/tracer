@@ -23,7 +23,7 @@ bvh::GameObject *motherGameObject;
 bvh::GameObject *cubeMother1, *cubeMother2, *cubeMother3, *cubeMother4;
 #endif
 
-static TriangleList *triangleList = new TriangleList();
+static prims::TriangleList *triangleList = new prims::TriangleList();
 
 Application::Application(utils::Window *window, RendererType type, int width, int height, const char *scene,
 						 const char *skybox)
@@ -40,7 +40,6 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 	m_ObjectList = new prims::SceneObjectList();
 
 	m_Type = type;
-	Resize(width, height);
 	m_DrawShader = new gl::Shader("shaders/quad.vert", "shaders/quad.frag");
 
 	if (m_Type == CPU || m_Type == CPU_RAYTRACER)
@@ -241,6 +240,8 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 	gameObjects->push_back(motherGameObject);
 #endif
 
+	Resize(width, height);
+
 	switch (m_Type)
 	{
 	case (GPU):
@@ -268,6 +269,7 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 	}
 	}
 
+	Resize(width, height);
 	std::cout << "Init done." << std::endl;
 }
 
@@ -291,9 +293,6 @@ Application::~Application()
 
 void Application::Tick(float) noexcept
 {
-	if (m_Camera.isDirty && m_Renderer)
-		m_Renderer->Reset();
-
 	if (!m_DynamicLocked && (m_Type == CPU || m_Type == CPU_RAYTRACER))
 	{
 		if (m_DBVHBuildTimer.elapsed() > 1000.0f)
@@ -438,6 +437,12 @@ void Application::Draw(float deltaTime)
 	frametimes.push_back(deltaTime);
 
 	ImGui::Begin("Information");
+	if (ImGui::DragFloat("Render scale", &m_RenderScale, 0.1f, 0.1f, 1.0f))
+	{
+		glm::clamp(m_RenderScale, 0.1f, 1.0f);
+		Resize(m_Width, m_Height);
+	}
+
 	ImGui::Text("Position: %f, %f, %f", m_Camera.position.x, m_Camera.position.y, m_Camera.position.z);
 	ImGui::DragFloat("Speed", &movementspeedModifier, 0.005f, 0.005f, 100.0f);
 	if (ImGui::Button("Reset"))
@@ -483,33 +488,38 @@ void Application::Draw(float deltaTime)
 
 void Application::Resize(int newWidth, int newHeight)
 {
-	glViewport(0, 0, newWidth, newHeight);
 	glFinish();
-	m_Camera.setDimensions({newWidth, newHeight});
+
 	m_Width = newWidth;
 	m_Height = newHeight;
+
+	const int renderWidth = newWidth * m_RenderScale;
+	const int renderHeight = newHeight * m_RenderScale;
+
+	m_Camera.setDimensions({renderWidth, renderHeight});
 
 	delete m_OutputTexture[0];
 	delete m_OutputTexture[1];
 	delete m_Screen;
 
 	m_Screen = new core::Surface(m_Width, m_Height);
+	m_Screen->resize(renderWidth, renderHeight);
+	m_Screen->setPitch(renderWidth);
 
 	if (m_Type == CPU || m_Type == CPU_RAYTRACER)
 	{
-		m_OutputTexture[0] = new gl::Texture(m_Width, m_Height, gl::Texture::SURFACE);
-		m_OutputTexture[1] = new gl::Texture(m_Width, m_Height, gl::Texture::SURFACE);
+		m_OutputTexture[0] = new gl::Texture(renderWidth, renderHeight, gl::Texture::SURFACE);
+		m_OutputTexture[1] = new gl::Texture(renderWidth, renderHeight, gl::Texture::SURFACE);
 
 		m_tIndex = 1 - m_tIndex;
-		m_Screen->resize(newWidth, newHeight);
-		m_Screen->SetPitch(m_Width);
+		m_Screen->SetBuffer(m_OutputTexture[m_tIndex]->mapToPixelBuffer());
 	}
 	else
 	{
-		m_OutputTexture[0] = new gl::Texture(m_Width, m_Height, gl::Texture::FLOAT);
-		m_OutputTexture[1] = new gl::Texture(m_Width, m_Height, gl::Texture::FLOAT);
+		m_OutputTexture[0] = new gl::Texture(renderWidth, renderHeight, gl::Texture::FLOAT);
+		m_OutputTexture[1] = new gl::Texture(renderWidth, renderHeight, gl::Texture::FLOAT);
 	}
 
 	if (m_Renderer)
-		m_Renderer->Resize(m_OutputTexture[0]);
+		m_Renderer->Resize(renderWidth, renderHeight, m_OutputTexture[0], m_OutputTexture[1]);
 }

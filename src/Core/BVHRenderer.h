@@ -15,7 +15,7 @@ class BVHRenderer : public Renderer
 	~BVHRenderer() override;
 
 	void Render(Surface *output) override;
-	void Resize(gl::Texture *newOutput) override;
+	void Resize(int  width, int  height, gl::Texture * newOutput1, gl::Texture * newOutput2) override;
 	void SwitchSkybox() override;
 
   private:

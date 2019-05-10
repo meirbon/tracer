@@ -105,8 +105,8 @@ void PathTracer::Render(Surface *output)
 {
 	const float EFactor = 1.0f / float(SAMPLE_COUNT);
 
-	m_Width = output->GetWidth();
-	m_Height = output->GetHeight();
+	m_Width = output->getWidth();
+	m_Height = output->getHeight();
 
 	const int vTiles = std::ceil(float(m_Height) / float(TILE_HEIGHT));
 	const int hTiles = std::ceil(float(m_Width) / float(TILE_WIDTH));
@@ -636,7 +636,7 @@ glm::vec3 PathTracer::SampleSkyBox(const glm::vec3 &dir) const
 	}
 	const float u = glm::min(1.0f, glm::max(0.0f, (1.0f + atan2f(dir.x, -dir.z) / PI) / 2.0f));
 	const float v = glm::min(1.0f, glm::max(0.0f, acosf(dir.y) / PI));
-	return this->m_SkyBox->GetColorAt(u, 1.0f - v);
+	return this->m_SkyBox->getColorAt(u, 1.0f - v);
 }
 
 glm::vec3 PathTracer::SampleReference(Ray &r, RandomGenerator &rng) const
@@ -770,10 +770,10 @@ SceneObject *PathTracer::RandomPointOnLight(float &NEEpdf, RandomGenerator &rng)
 	return lights.at(winningIdx);
 }
 
-void PathTracer::Resize(gl::Texture *newOutput)
+void PathTracer::Resize(int width, int height, gl::Texture *newOutput1, gl::Texture *)
 {
-	m_Width = newOutput->GetWidth();
-	m_Height = newOutput->GetHeight();
+	m_Width = width;
+	m_Height = height;
 
 	delete[] m_Pixels;
 	delete[] m_Energy;

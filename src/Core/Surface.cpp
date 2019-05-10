@@ -130,7 +130,7 @@ void Surface::Print(const char *str, int x1, int y1, Pixel color)
 void Surface::Resize(Surface *original)
 {
 	Pixel *src = original->GetBuffer(), *dst = m_Buffer;
-	int u, v, owidth = original->GetWidth(), oheight = original->GetHeight();
+	int u, v, owidth = original->getWidth(), oheight = original->getHeight();
 	int dx = (owidth << 10) / m_Width, dy = (oheight << 10) / m_Height;
 	for (v = 0; v < m_Height; v++)
 	{
@@ -160,7 +160,7 @@ void Surface::Resize(Surface *original)
 	}
 }
 
-const glm::vec3 Surface::GetColorAt(const glm::vec2 texCoords) const
+const glm::vec3 Surface::getColorAt(glm::vec2 texCoords) const
 {
 	const int yValue = (int)glm::max(0, (int)(glm::min(texCoords.y, 1.f) * m_Height) - 1);
 	const int xValue = (int)glm::max(0, (int)(glm::min(texCoords.x, 1.f) * m_Width) - 1);
@@ -168,7 +168,7 @@ const glm::vec3 Surface::GetColorAt(const glm::vec2 texCoords) const
 	return m_TexBuffer[xValue + yValue * m_Pitch];
 }
 
-const glm::vec3 Surface::GetColorAt(const float &x, const float &y) const
+const glm::vec3 Surface::getColorAt(const float &x, const float &y) const
 {
 	const int yValue = (int)glm::max(0, (int)(glm::min(y, 1.f) * m_Height) - 1);
 	const int xValue = (int)glm::max(0, (int)(glm::min(x, 1.f) * m_Width) - 1);
@@ -268,9 +268,9 @@ void Surface::CopyTo(Surface *destination, int a_X, int a_Y)
 		int srcwidth = m_Width;
 		int srcheight = m_Height;
 		int srcpitch = m_Pitch;
-		int dstwidth = destination->GetWidth();
-		int dstheight = destination->GetHeight();
-		int dstpitch = destination->GetPitch();
+		int dstwidth = destination->getWidth();
+		int dstheight = destination->getHeight();
+		int dstpitch = destination->getPitch();
 		if ((srcwidth + a_X) > dstwidth)
 			srcwidth = dstwidth - a_X;
 		if ((srcheight + a_Y) > dstheight)
@@ -301,9 +301,9 @@ void Surface::BlendCopyTo(Surface *destination, int X, int Y)
 		int srcwidth = m_Width;
 		int srcheight = m_Height;
 		int srcpitch = m_Pitch;
-		int dstwidth = destination->GetWidth();
-		int dstheight = destination->GetHeight();
-		int dstpitch = destination->GetPitch();
+		int dstwidth = destination->getWidth();
+		int dstheight = destination->getHeight();
+		int dstpitch = destination->getPitch();
 		if ((srcwidth + X) > dstwidth)
 			srcwidth = dstwidth - X;
 		if ((srcheight + Y) > dstheight)
@@ -410,7 +410,7 @@ void Surface::ScaleColor(unsigned int scale)
 glm::vec4 *Surface::GetTextureBuffer() { return m_TexBuffer.data(); }
 
 Sprite::Sprite(Surface *output, unsigned int numFrames)
-	: m_Width(output->GetWidth() / numFrames), m_Height(output->GetHeight()), m_Pitch(output->GetWidth()),
+	: m_Width(output->getWidth() / numFrames), m_Height(output->getHeight()), m_Pitch(output->getWidth()),
 	  m_NumFrames(numFrames), m_CurrentFrame(0), m_Flags(0), m_Start(new unsigned int *[numFrames]), m_Surface(output)
 {
 	InitializeStartData();
@@ -426,9 +426,9 @@ Sprite::~Sprite()
 
 void Sprite::Draw(Surface *output, int X, int Y)
 {
-	if ((X < -m_Width) || (X > (output->GetWidth() + m_Width)))
+	if ((X < -m_Width) || (X > (output->getWidth() + m_Width)))
 		return;
-	if ((Y < -m_Height) || (Y > (output->GetHeight() + m_Height)))
+	if ((Y < -m_Height) || (Y > (output->getHeight() + m_Height)))
 		return;
 	int x1 = X, x2 = X + m_Width;
 	int y1 = Y, y2 = Y + m_Height;
@@ -438,18 +438,18 @@ void Sprite::Draw(Surface *output, int X, int Y)
 		src += -x1;
 		x1 = 0;
 	}
-	if (x2 > output->GetWidth())
-		x2 = output->GetWidth();
+	if (x2 > output->getWidth())
+		x2 = output->getWidth();
 	if (y1 < 0)
 	{
 		src += -y1 * m_Pitch;
 		y1 = 0;
 	}
-	if (y2 > output->GetHeight())
-		y2 = output->GetHeight();
+	if (y2 > output->getHeight())
+		y2 = output->getHeight();
 	Pixel *dest = output->GetBuffer();
 	int xs;
-	const int dpitch = output->GetPitch();
+	const int dpitch = output->getPitch();
 	if ((x2 > x1) && (y2 > y1))
 	{
 		unsigned int addr = y1 * dpitch + x1;
@@ -499,7 +499,7 @@ void Sprite::DrawScaled(int X, int Y, int width, int height, Surface *output)
 			int v = (int)((float)y * ((float)m_Height / (float)height));
 			Pixel color = GetBuffer()[u + v * m_Pitch];
 			if (color & 0xffffff)
-				output->GetBuffer()[X + x + ((Y + y) * output->GetPitch())] = color;
+				output->GetBuffer()[X + x + ((Y + y) * output->getPitch())] = color;
 		}
 }
 
@@ -528,8 +528,8 @@ SurfaceFont::SurfaceFont(const char *file, const char *chars)
 {
 	m_Surface = new Surface(file);
 	Pixel *b = m_Surface->GetBuffer();
-	int w = m_Surface->GetWidth();
-	int h = m_Surface->GetHeight();
+	int w = m_Surface->getWidth();
+	int h = m_Surface->getHeight();
 	unsigned int charnr = 0, start = 0;
 	m_Trans = new int[256];
 	memset(m_Trans, 0, 1024);
@@ -588,13 +588,13 @@ int SurfaceFont::Width(const char *text)
 
 void SurfaceFont::Centre(Surface *output, const char *text, int y)
 {
-	int x = (output->GetPitch() - Width(text)) / 2;
+	int x = (output->getPitch() - Width(text)) / 2;
 	Print(output, text, x, y);
 }
 
 void SurfaceFont::Print(Surface *output, const char *text, int X, int Y, bool clip)
 {
-	Pixel *b = output->GetBuffer() + X + Y * output->GetPitch();
+	Pixel *b = output->GetBuffer() + X + Y * output->getPitch();
 	Pixel *s = m_Surface->GetBuffer();
 	unsigned int i, cx;
 	int x, y;
@@ -615,10 +615,10 @@ void SurfaceFont::Print(Surface *output, const char *text, int X, int Y, bool cl
 					if (((Y + y) >= m_CY1) && ((Y + y) <= m_CY2))
 					{
 						for (x = 0; x < m_Width[c]; x++)
-							if ((t[x]) && ((x + (int)cx + X) < output->GetPitch()))
+							if ((t[x]) && ((x + (int)cx + X) < output->getPitch()))
 								d[x] = AddBlend(t[x], d[x]);
 					}
-					t += m_Surface->GetPitch(), d += output->GetPitch();
+					t += m_Surface->getPitch(), d += output->getPitch();
 				}
 			}
 			else
@@ -629,11 +629,11 @@ void SurfaceFont::Print(Surface *output, const char *text, int X, int Y, bool cl
 						for (x = 0; x < m_Width[c]; x++)
 							if (t[x])
 								d[x] = AddBlend(t[x], d[x]);
-					t += m_Surface->GetPitch(), d += output->GetPitch();
+					t += m_Surface->getPitch(), d += output->getPitch();
 				}
 			}
 			cx += m_Width[c] + 2;
-			if ((int)(cx + X) >= output->GetPitch())
+			if ((int)(cx + X) >= output->getPitch())
 				break;
 		}
 	}

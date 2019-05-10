@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 	int exitApp = 0;
 	const char *f = file.c_str();
 	auto window = utils::GLFWWindow("Tracer", SCRWIDTH, SCRHEIGHT, oFullScreen);
-	auto app = new Application(&window, rendererType, SCRWIDTH, SCRHEIGHT, file.empty() ? nullptr : f);
+	auto app = new Application(&window, rendererType, window.GetWidth(), window.GetHeight(), file.empty() ? nullptr : f);
 
 	Timer t, drawTimer;
 	window.SetEventCallback([&exitApp, &app](utils::Event event) {

@@ -20,6 +20,7 @@ class Texture
 	Texture(unsigned int width, unsigned int height, unsigned int type = DEFAULT);
 
 	Texture(const char *fileName);
+	~Texture();
 
 	// get / set
 	unsigned int GetID() { return m_Id; }

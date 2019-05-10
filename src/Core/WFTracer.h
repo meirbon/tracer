@@ -39,7 +39,7 @@ class WFTracer : public Renderer
 
   public:
 	WFTracer() = default;
-	WFTracer(TriangleList *tList, gl::Texture *t1, gl::Texture *t2, Camera *camera, Surface *skybox = nullptr,
+	WFTracer(prims::TriangleList *tList, gl::Texture *t1, gl::Texture *t2, Camera *camera, Surface *skybox = nullptr,
 			 ctpl::ThreadPool *pool = nullptr);
 	~WFTracer() override;
 
@@ -70,7 +70,7 @@ class WFTracer : public Renderer
 		this->m_SkyboxEnabled = (this->m_HasSkybox && !this->m_SkyboxEnabled);
 	}
 
-	void Resize(gl::Texture *newOutput) override;
+	void Resize(int width, int height, gl::Texture *newOutput1, gl::Texture *newOutput2) override;
 
 	void setupCamera();
 	void setupObjects();
@@ -89,7 +89,7 @@ class WFTracer : public Renderer
 	bvh::MBVHTree *m_MBVHTree = nullptr;
 	gl::Texture *outputTexture[2] = {nullptr, nullptr};
 
-	cl::TextureBuffer *outputBuffer = nullptr;
+	cl::TextureBuffer *outputBuffer[2] = {nullptr, nullptr};
 	cl::Buffer<unsigned int> *primitiveIndicesBuffer = nullptr;
 	cl::Buffer<bvh::MBVHNode> *MBVHNodeBuffer = nullptr;
 	cl::Buffer<glm::vec4> *colorBuffer = nullptr;
@@ -116,6 +116,8 @@ class WFTracer : public Renderer
 	cl::Kernel *wConnectKernel = nullptr;
 	cl::Kernel *wDrawKernel = nullptr;
 
-	TriangleList *m_TList = nullptr;
+	prims::TriangleList *m_TList = nullptr;
+
+	int tIdx = 0;
 };
 } // namespace core

@@ -14,11 +14,11 @@
 //
 //// https://github.com/tiansijie/Tile_Based_WebGL_DeferredShader/tree/master/NPRChinesepainting/obj/cornell-box
 void CornellBox(prims::SceneObjectList *objectList);
-void CornellBox(TriangleList *objectList);
+void CornellBox(prims::TriangleList *objectList);
 // void CBox(prims::SceneObjectList *objectList);
 // void CBoxWater(prims::SceneObjectList *objectList);
 // void Sponza(prims::SceneObjectList *objectList);
 // void Dragon(prims::SceneObjectList *objectList);
 
 void Micromaterials(prims::SceneObjectList *objectList);
-void Micromaterials(TriangleList *objectList);
+void Micromaterials(prims::TriangleList *objectList);

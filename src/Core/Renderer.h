@@ -28,7 +28,7 @@ class Renderer
 
 	inline virtual int GetSamples() const { return m_Samples; }
 
-	virtual void Resize(gl::Texture *newOutput) = 0;
+	virtual void Resize(int width, int height, gl::Texture *newOutput1, gl::Texture *newOutput2) = 0;
 
 	virtual ~Renderer() = default;
 
@@ -60,12 +60,12 @@ class Renderer
 
 	virtual void SetMode(int mode) { m_Mode = mode; }
 
-	virtual void SetMode(const std::string&){};
-	virtual const std::vector<const char*> &GetModes() { return m_Modes; };
+	virtual void SetMode(const std::string &){};
+	virtual const std::vector<const char *> &GetModes() { return m_Modes; };
 
   protected:
 	int m_Mode = Reference;
 	int m_Samples = 0;
-	std::vector<const char*> m_Modes;
+	std::vector<const char *> m_Modes;
 };
 } // namespace core

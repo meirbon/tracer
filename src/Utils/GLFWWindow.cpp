@@ -7,7 +7,7 @@ namespace utils
 GLFWWindow *instance;
 
 GLFWWindow::GLFWWindow(const char *title, int width, int height, bool fullscreen, bool lockMouse)
-	: Window(title, width, height), m_IsFullscreen(fullscreen)
+	: m_IsFullscreen(fullscreen), m_Width(width), m_Height(height)
 {
 	instance = this;
 	if (!glfwInit())
@@ -18,6 +18,7 @@ GLFWWindow::GLFWWindow(const char *title, int width, int height, bool fullscreen
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+	glfwWindowHint(GLFW_SCALE_TO_MONITOR, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #ifdef __APPLE__
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
@@ -73,7 +74,7 @@ GLFWWindow::GLFWWindow(const char *title, int width, int height, bool fullscreen
 
 	ImGui_ImplGlfw_InitForOpenGL(m_Window, true);
 	ImGui_ImplOpenGL3_Init("#version 150");
-	
+
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
@@ -89,17 +90,21 @@ GLFWWindow::~GLFWWindow()
 	glfwTerminate();
 }
 
-void GLFWWindow::SetSize(int width, int height)
+int GLFWWindow::GetWidth()
 {
-	m_Width = width, m_Height = height;
-	glfwSetWindowSize(m_Window, m_Width, m_Height);
+	glfwGetWindowSize(m_Window, &m_Width, &m_Height);
+	return m_Width;
 }
 
-void GLFWWindow::SetTitle(const char *title)
+int GLFWWindow::GetHeight()
 {
-	m_Title = title;
-	glfwSetWindowTitle(m_Window, title);
+	glfwGetWindowSize(m_Window, &m_Width, &m_Height);
+	return m_Height;
 }
+
+void GLFWWindow::SetSize(int width, int height) { glfwSetWindowSize(m_Window, width, height); }
+
+void GLFWWindow::SetTitle(const char *title) { glfwSetWindowTitle(m_Window, title); }
 
 void GLFWWindow::PollEvents() { glfwPollEvents(); }
 

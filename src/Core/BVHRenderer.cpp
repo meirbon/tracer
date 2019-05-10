@@ -18,8 +18,8 @@ BVHRenderer::~BVHRenderer() { delete m_TPool; }
 
 void BVHRenderer::Render(Surface *output)
 {
-	m_Width = output->GetWidth();
-	m_Height = output->GetHeight();
+	m_Width = output->getWidth();
+	m_Height = output->getHeight();
 
 	for (int i = 0; i < ctpl::nr_of_cores; i++)
 	{
@@ -51,7 +51,7 @@ void BVHRenderer::Render(Surface *output)
 	tResults.clear();
 }
 
-void BVHRenderer::Resize(gl::Texture *) {}
+void BVHRenderer::Resize(int  width, int  height, gl::Texture *, gl::Texture *) {}
 
 void BVHRenderer::SwitchSkybox() {}
 } // namespace core

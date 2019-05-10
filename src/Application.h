@@ -136,4 +136,5 @@ class Application
 	utils::Window *m_Window;
 
 	float movementspeedModifier = .01f;
+	float m_RenderScale = 1.0f;
 };

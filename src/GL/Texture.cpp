@@ -17,6 +17,7 @@ Texture::Texture(unsigned int width, unsigned int height, unsigned int type) : m
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, 0);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glGenerateMipmap(GL_TEXTURE_2D);
 	}
 	else if (type == SURFACE)
 	{
@@ -59,8 +60,9 @@ Texture::Texture(unsigned int width, unsigned int height, unsigned int type) : m
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, data);
-		glBindTexture(GL_TEXTURE_2D, m_Id);
 	}
+
+	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 Texture::Texture(const char *fileName)
@@ -99,6 +101,14 @@ Texture::Texture(const char *fileName)
 	glTexParameteri(textureType, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(textureType, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glGenerateMipmap(textureType);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+Texture::~Texture()
+{
+	glDeleteTextures(1, &m_Id);
+	glDeleteBuffers(1, &m_PboId);
 }
 
 void Texture::Bind() { glBindTexture(GL_TEXTURE_2D, m_Id); }
@@ -108,38 +118,42 @@ void Texture::Bind(int slot)
 	glActiveTexture(slot);
 	glBindTexture(GL_TEXTURE_2D, m_Id);
 }
+
 core::Pixel *Texture::mapToPixelBuffer()
 {
 	glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER_ARB);
-	Bind();
+	glBindTexture(GL_TEXTURE_2D, m_Id);
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, m_PboId);
 	auto *buffer = glMapBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, GL_WRITE_ONLY_ARB);
 	memset(buffer, 0, m_Width * m_Height * 4);
+	glBindTexture(GL_TEXTURE_2D, 0);
 	return (core::Pixel *)buffer;
 }
 
 core::FPixel *Texture::mapToFPixelBuffer()
 {
 	glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER_ARB);
-	Bind();
+	glBindTexture(GL_TEXTURE_2D, m_Id);
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, m_PboId);
 	auto *buffer = glMapBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, GL_WRITE_ONLY_ARB);
 	memset(buffer, 0, m_Width * m_Height * 4);
+	glBindTexture(GL_TEXTURE_2D, 0);
 	return (core::FPixel *)buffer;
 }
 
 void Texture::flushData()
 {
 	glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER_ARB);
-	Bind();
+	glBindTexture(GL_TEXTURE_2D, m_Id);
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, m_PboId);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_Width, m_Height, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void Texture::clearBuffer()
 {
 	glBindTexture(GL_TEXTURE_2D, m_Id);
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, m_PboId);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_Width, m_Height, GL_BGRA, GL_UNSIGNED_BYTE, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 }
 } // namespace gl

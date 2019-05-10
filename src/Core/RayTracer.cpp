@@ -28,8 +28,8 @@ RayTracer::RayTracer(prims::WorldScene *Scene, glm::vec3 backGroundColor, glm::v
 
 void RayTracer::Render(Surface *output)
 {
-	m_Width = output->GetWidth();
-	m_Height = output->GetHeight();
+	m_Width = output->getWidth();
+	m_Height = output->getHeight();
 
 	int nr_of_threads = tPool->size();
 	for (int i = 0; i < nr_of_threads; i++)
@@ -75,7 +75,7 @@ glm::vec3 RayTracer::Trace(Ray &r, uint &depth, float refractionIndex, RandomGen
 		const float u =
 			min(1.0f, max(0.0f, (1.0f + atan2f(r.direction.x, -r.direction.z) * one_over_pi<float>()) / 2.0f));
 		const float v = min(1.0f, max(0.0f, acosf(r.direction.y) * one_over_pi<float>()));
-		return m_SkyBox->GetColorAt(u, 1.0f - v);
+		return m_SkyBox->getColorAt(u, 1.0f - v);
 	}
 
 	return Shade(r, depth, refractionIndex, rng);
@@ -202,10 +202,10 @@ glm::vec3 RayTracer::GetreflectionRefractionColor(const core::Ray &r, uint &dept
 	return reflectiveColor * FractionReflection + refractionCol * FractionTransmission;
 }
 
-void RayTracer::Resize(gl::Texture *newOutput)
+void RayTracer::Resize(int width, int height, gl::Texture *newOutput1, gl::Texture *)
 {
-	m_Width = newOutput->GetWidth();
-	m_Height = newOutput->GetHeight();
+	m_Width = width;
+	m_Height = height;
 	m_Camera->setDimensions({m_Width, m_Height});
 
 	m_Pixels.clear();

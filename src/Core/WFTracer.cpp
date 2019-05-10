@@ -9,7 +9,7 @@ using namespace core;
 namespace core
 {
 
-WFTracer::WFTracer(TriangleList *tList, gl::Texture *t1, gl::Texture *t2, Camera *camera, Surface *skybox,
+WFTracer::WFTracer(prims::TriangleList *tList, gl::Texture *t1, gl::Texture *t2, Camera *camera, Surface *skybox,
 				   ctpl::ThreadPool *pool)
 	: m_Camera(camera), m_Frame(0), m_TList(tList)
 {
@@ -35,7 +35,7 @@ WFTracer::WFTracer(TriangleList *tList, gl::Texture *t1, gl::Texture *t2, Camera
 	wConnectKernel = new Kernel("cl-src/program.cl", "connect", workSize);
 	wDrawKernel = new Kernel("cl-src/program.cl", "draw", workSize);
 
-	Resize(t1);
+	Resize(0, 0, t1, t2);
 	setupObjects();
 	setupMaterials();
 	setupTextures();
@@ -49,7 +49,8 @@ WFTracer::~WFTracer()
 	delete m_BVHTree;
 	delete m_MBVHTree;
 
-	delete outputBuffer;
+	delete outputBuffer[0];
+	delete outputBuffer[1];
 	delete primitiveIndicesBuffer;
 	delete MBVHNodeBuffer;
 	delete colorBuffer;
@@ -79,7 +80,11 @@ WFTracer::~WFTracer()
 
 void WFTracer::Render(Surface *)
 {
-	m_Frame++;
+	if (m_Frame <= 0)
+		m_Frame = 1;
+
+	wGenerateRayKernel->setArgument(0, outputBuffer[tIdx]);
+	wDrawKernel->setArgument(0, outputBuffer[tIdx]);
 
 	wGenerateRayKernel->setArgument(7, m_Frame);
 	wShadeRefKernel->setArgument(21, m_Frame);
@@ -87,7 +92,7 @@ void WFTracer::Render(Surface *)
 	wShadeMisKernel->setArgument(21, m_Frame);
 	wDrawKernel->setArgument(4, m_Frame);
 
-	wGenerateRayKernel->run(outputBuffer);
+	wGenerateRayKernel->run(outputBuffer[tIdx]);
 	wIntersectKernel->run();
 
 	Kernel::syncQueue();
@@ -111,24 +116,29 @@ void WFTracer::Render(Surface *)
 		break;
 	}
 
-	wDrawKernel->run(outputBuffer);
+	wDrawKernel->run(outputBuffer[tIdx]);
+	tIdx = 1 - tIdx;
 	m_Samples++;
+	m_Frame++;
+
 	result.get();
 }
 
 void WFTracer::Reset()
 {
 	colorBuffer->clear();
-	outputBuffer->clear();
+	outputBuffer[0]->clear();
+	outputBuffer[1]->clear();
 	m_Samples = 0;
-	m_Frame = 0;
+	m_Frame = 1;
 }
 
-void WFTracer::Resize(gl::Texture *newOutput)
+void WFTracer::Resize(int width, int height, gl::Texture *newOutput1, gl::Texture *newOutput2)
 {
-	outputTexture[0] = newOutput;
-	m_Width = newOutput->GetWidth();
-	m_Height = newOutput->GetHeight();
+	outputTexture[0] = newOutput1;
+	outputTexture[1] = newOutput2;
+	m_Width = width;
+	m_Height = height;
 	setupCamera();
 
 	auto workSizeX = m_Width + (m_Width % 8);
@@ -142,7 +152,11 @@ void WFTracer::Resize(gl::Texture *newOutput)
 	wConnectKernel->SetWorkSize(workSizeX, workSizeY, 1);
 	wDrawKernel->SetWorkSize(workSizeX, workSizeY, 1);
 
-	outputBuffer = new TextureBuffer(newOutput, BufferType::TARGET);
+	delete outputBuffer[0];
+	delete outputBuffer[1];
+
+	outputBuffer[0] = new TextureBuffer(newOutput1, BufferType::TARGET);
+	outputBuffer[1] = new TextureBuffer(newOutput2, BufferType::TARGET);
 	raysBuffer = new Buffer<float>(m_Width * m_Height * 96 / 4);
 	sRaysBuffer = new Buffer<float>(m_Width * m_Height * 96 / 4);
 	colorBuffer = new Buffer<glm::vec4>(m_Width * m_Height);
@@ -202,13 +216,13 @@ void WFTracer::setupTextures()
 		for (auto *tex : m_TList->m_Textures)
 		{
 			const int offset = int(textureColors.size());
-			const auto texSize = tex->GetWidth() * tex->GetHeight();
+			const auto texSize = tex->getWidth() * tex->getHeight();
 			for (int i = 0; i < texSize; i++)
 			{
 				const vec4 color = tex->GetTextureBuffer()[i];
 				textureColors.push_back(color);
 			}
-			textureInfos.emplace_back(tex->GetWidth(), tex->GetHeight(), offset);
+			textureInfos.emplace_back(tex->getWidth(), tex->getHeight(), offset);
 		}
 
 		textureBuffer = new Buffer(textureColors);
@@ -230,7 +244,7 @@ void WFTracer::setupSkybox(Surface *skybox)
 	m_HasSkybox = (skybox != nullptr);
 	if (m_HasSkybox)
 	{
-		auto skyInfo = TextureInfo(skybox->GetWidth(), skybox->GetHeight(), 0);
+		auto skyInfo = TextureInfo(skybox->getWidth(), skybox->getHeight(), 0);
 		skyDomeBuffer = new Buffer(skybox->getTextureVector());
 		skyDomeInfoBuffer = new Buffer(&skyInfo);
 		skyDomeBuffer->copyToDevice();
@@ -247,8 +261,8 @@ void WFTracer::setupSkybox(Surface *skybox)
 
 void WFTracer::setArguments()
 {
+	wGenerateRayKernel->setArgument(0, outputBuffer[0]);
 	wGenerateRayKernel->setArgument(1, colorBuffer);
-	wGenerateRayKernel->setArgument(0, outputBuffer);
 	wGenerateRayKernel->setArgument(2, raysBuffer);
 	wGenerateRayKernel->setArgument(3, sRaysBuffer);
 	wGenerateRayKernel->setArgument(4, m_Camera->getGPUBuffer());
@@ -342,7 +356,7 @@ void WFTracer::setArguments()
 	wConnectKernel->setArgument(6, m_Width);
 	wConnectKernel->setArgument(7, m_Height);
 
-	wDrawKernel->setArgument(0, outputBuffer);
+	wDrawKernel->setArgument(0, outputBuffer[0]);
 	wDrawKernel->setArgument(1, colorBuffer);
 	wDrawKernel->setArgument(2, m_Width);
 	wDrawKernel->setArgument(3, m_Height);

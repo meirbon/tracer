@@ -71,13 +71,13 @@ class Surface
 		m_Height = height;
 	}
 
-	const int &GetWidth() const { return m_Width; }
+	const int &getWidth() const { return m_Width; }
 
-	const int &GetHeight() const { return m_Height; }
+	const int &getHeight() const { return m_Height; }
 
-	const int &GetPitch() { return m_Pitch; }
+	const int &getPitch() { return m_Pitch; }
 
-	void SetPitch(int a_Pitch) { m_Pitch = a_Pitch; }
+	void setPitch(int a_Pitch) { m_Pitch = a_Pitch; }
 
 	// Special operations
 	void InitCharset();
@@ -109,9 +109,9 @@ class Surface
 
 	void Resize(Surface *a_Orig);
 
-	const glm::vec3 GetColorAt(glm::vec2 texCoords) const;
+	const glm::vec3 getColorAt(glm::vec2 texCoords) const;
 
-	const glm::vec3 GetColorAt(const float &x, const float &y) const;
+	const glm::vec3 getColorAt(const float &x, const float &y) const;
 
   private:
 	// Attributes
@@ -200,7 +200,7 @@ class SurfaceFont
 
 	int Width(const char *a_Text);
 
-	int Height() { return m_Surface->GetHeight(); }
+	int Height() { return m_Surface->getHeight(); }
 
 	void YClip(int y1, int y2)
 	{

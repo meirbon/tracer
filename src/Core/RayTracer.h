@@ -28,7 +28,7 @@ class RayTracer : public Renderer
 
 	inline void SwitchSkybox() override {}
 
-	void Resize(gl::Texture *newOutput) override;
+	void Resize(int width, int height, gl::Texture *newOutput1, gl::Texture *newOutput2) override;
 
 	inline void Reset() override { m_Samples = 0; }
 
