@@ -18,15 +18,15 @@ namespace core
 using namespace prims;
 
 PathTracer::PathTracer(WorldScene *scene, int width, int height, Camera *camera, Surface *skyBox)
-	: m_Scene(scene), m_Width(width), m_Height(height), m_SkyBox(skyBox), m_Camera(camera),
-	  m_SkyboxEnabled(skyBox != nullptr)
+	: m_Scene(scene), m_Width(width), m_Height(height), m_SkyboxEnabled(skyBox != nullptr), m_SkyBox(skyBox),
+	  m_Camera(camera)
 {
 	m_Modes = {"NEE", "IS", "NEE_IS", "NEE_MIS", "Reference MF", "Reference"};
 	m_Pixels = new glm::vec3[m_Width * m_Height];
 	m_Energy = new float[m_Width * m_Height];
 
 	Reset();
-	m_Tiles = (m_Width / TILE_WIDTH) * (m_Height / TILE_HEIGHT);
+	int tiles = std::ceil(m_Width / TILE_WIDTH) * std::ceil(m_Height / TILE_HEIGHT);
 
 	auto &lights = m_Scene->GetLights();
 	m_LightArea = 0.0f;
@@ -49,10 +49,8 @@ PathTracer::PathTracer(WorldScene *scene, int width, int height, Camera *camera,
 
 	this->tPool = new ctpl::ThreadPool(ctpl::nr_of_cores);
 
-	for (int i = 0; i < m_Tiles; i++)
-	{
+	for (int i = 0; i < tiles; i++)
 		m_Rngs.push_back(new Xor128());
-	}
 
 	m_Samples = 0;
 	m_Materials = MaterialManager::GetInstance();
@@ -119,8 +117,8 @@ void PathTracer::Render(Surface *output)
 	{
 		for (int tile_x = 0; tile_x < hTiles; tile_x++)
 		{
-			RandomGenerator *rngPointer = m_Rngs.at(idx);
-			tResults.push_back(tPool->push([tile_x, tile_y, this, output, rngPointer, EFactor](int) -> void {
+			RandomGenerator *rng = m_Rngs.at(idx);
+			tResults.push_back(tPool->push([tile_x, tile_y, this, output, &rng, EFactor](int) -> void {
 				for (int y = 0; y < TILE_HEIGHT; y++)
 				{
 					const int pixel_y = y + tile_y * TILE_HEIGHT;
@@ -133,8 +131,8 @@ void PathTracer::Render(Surface *output)
 							continue;
 
 						uint depth = 0;
-						Ray r = m_Camera->generateRandomRay(float(pixel_x), float(pixel_y), *rngPointer);
-						auto color = Trace(r, depth, 1.f, *rngPointer) * EFactor;
+						Ray r = m_Camera->generateRandomRay(float(pixel_x), float(pixel_y), *rng);
+						auto color = Trace(r, depth, 1.f, *rng) * EFactor;
 
 						const int idx = pixel_x + pixel_y * m_Width;
 
@@ -784,17 +782,19 @@ void PathTracer::Resize(gl::Texture *newOutput)
 	m_Energy = new float[m_Width * m_Height];
 	Reset();
 
-	m_Tiles = int(std::ceil(float(m_Width) / TILE_WIDTH) * std::ceil(float(m_Height) / TILE_HEIGHT));
+	int tiles = std::ceil(m_Width / TILE_WIDTH) * std::ceil(m_Height / TILE_HEIGHT);
 
+	for (auto *rng : m_Rngs)
+		delete rng;
 	m_Rngs.clear();
-	for (int i = 0; i < m_Tiles; i++)
+	for (int i = 0; i < tiles; i++)
 		m_Rngs.push_back(new Xor128());
 }
 
 glm::vec3 PathTracer::SampleReferenceMicrofacet(Ray &r, RandomGenerator &rng) const
 {
-	glm::vec3 E = vec3(0.0f);
-	glm::vec3 throughput = vec3(1.0f);
+	auto E = vec3(0.0f);
+	auto throughput = vec3(1.0f);
 	glm::vec3 u{}, v{}, w{};							   // For the transformation from world to local and back
 	glm::vec3 wiLocal{}, wmLocal{}, wm{}, woLocal{}, wo{}; // The in and outgoing path vectors
 

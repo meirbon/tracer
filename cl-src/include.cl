@@ -1,5 +1,8 @@
 #include "Shared.h"
 
+#define RAY_MASK_NO_HIT -1
+#define RAY_MASK_REGENERATE -2
+
 // clang-format off
 #include "random.cl"
 #include "triangle.cl"

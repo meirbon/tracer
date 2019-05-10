@@ -83,9 +83,19 @@ kernel void shade_mis(global Ray *rays,				   // 0
                 const float weight = brdfPDF + lightPDF;
                 const float w1 = brdfPDF / weight;
                 const float w2 = lightPDF / weight;
-                color /= (w1 * brdfPDF + w2 * lightPDF) * NdotL * (float)(lightCount);
+                const float pdf = max(1.0f / (w1 * brdfPDF + w2 * lightPDF), 0.0f);
+
+                color = color * pdf * NdotL;
             }
+            else
+            	color = (float3)(0);
         }
+
+        // Suppress fireflies
+        const float length2 = dot(color, color);
+        if (length2 > 100.0f)
+        	color = color / sqrt(length2) * 10.0f;
+
 
         colorBuffer[pixelIdx] += (float4)(color, 1.0f);
         ray.hit_idx = -1;
@@ -165,19 +175,20 @@ kernel void shade_mis(global Ray *rays,				   // 0
         break;
     }
 
-    if (ray.bounces >= 3)
+    if (ray.bounces >= 1)
     {
         const float prob = min(1.0f, max(ray.throughput.x, max(ray.throughput.y, ray.throughput.z)));
         if (ray.bounces < MAX_DEPTH && prob > EPSILON && prob > RandomFloat(&seed))
         {
+        	ray.origin += ray.direction * EPSILON;
             ray.bounces++;
             ray.throughput /= prob;
         }
         else // Stop this ray
         {
-            ray.hit_idx = -1;
+            ray.hit_idx = RAY_MASK_REGENERATE;
             ray.throughput = (float3)(0);
-            colorBuffer[pixelIdx].z += 1.0f;
+            colorBuffer[pixelIdx].w += 1.0f;
         }
     }
 

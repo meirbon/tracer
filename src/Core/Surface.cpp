@@ -35,7 +35,7 @@ Surface::Surface(const char *file) : m_Buffer(nullptr), m_Width(0), m_Height(0)
 	else
 		fclose(f);
 	LoadImage(file);
-} // namespace core
+}
 
 void Surface::LoadImage(const char *file)
 {
@@ -44,9 +44,7 @@ void Surface::LoadImage(const char *file)
 	FREE_IMAGE_FORMAT fif = FIF_UNKNOWN;
 	fif = FreeImage_GetFileType(file, 0);
 	if (fif == FIF_UNKNOWN)
-	{
 		fif = FreeImage_GetFIFFromFilename(file);
-	}
 
 	FIBITMAP *tmp = FreeImage_Load(fif, file);
 	FIBITMAP *dib = FreeImage_ConvertTo32Bits(tmp);
@@ -68,7 +66,7 @@ void Surface::LoadImage(const char *file)
 			const auto green = (uint)(quad.rgbGreen);
 			const auto blue = (uint)(quad.rgbBlue);
 			m_Buffer[x + y * m_Width] = (red << 0) | (green << 8) | (blue << 16);
-			m_TexBuffer.emplace_back(float(red) / 255.99f, float(green) / 255.99f, float(blue) / 255.99f, 1.0f);
+			m_TexBuffer.emplace_back(float(blue) / 255.99f, float(green) / 255.99f, float(red) / 255.99f, 1.0f);
 		}
 	}
 

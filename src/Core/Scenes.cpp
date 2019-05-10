@@ -8,6 +8,8 @@
 #include "Primitives/Torus.h"
 #include "Primitives/Triangle.h"
 
+using namespace prims;
+
 // void texturedScene(prims::SceneObjectList *objectList)
 //{
 //	auto *mManager = MaterialManager::GetInstance();
@@ -241,17 +243,20 @@ void Micromaterials(prims::SceneObjectList *objectList)
 	objectList->AddObject(new prims::Sphere(vec3(2.5f, -1.1f, -4.5f), 1.f, sphereMaterialIdx4));
 	objectList->AddObject(new prims::Sphere(vec3(5.f, -1.1f, -4.5f), 1.f, sphereMaterialIdx5));
 
-	auto tp = prims::TrianglePlane(vec3(4.0f, 6.0f, 1.0f), vec3(-4.0f, 6.0f, 1.0f), vec3(4.0f, 6.0f, -3.0f), lightMat,
-								   objectList);
+	Plane::create(vec3(0.0f, 6.0f, 1.0f), vec3(-4.0f, 6.0f, 1.0f), vec3(0.0f, 6.0f, -3.0f), lightMat, objectList);
+
+	Plane::create(vec3(4.0f, 6.0f, -10.0f), vec3(-0.0f, 6.0f, -10.0f), vec3(4.0f, 6.0f, -12.0f), lightMat, objectList);
+
+	Plane::create(vec3(4.0f, 6.0f, -5.0f), vec3(-4.0f, 6.0f, -5.0f), vec3(4.0f, 6.0f, -8.0f), lightMat, objectList);
 	int zIdx = 0;
 	for (int z = -10; z < 10; z++)
 	{
 		int idx = zIdx;
 		for (int x = -20; x < 2; x++)
 		{
-			auto t = prims::TrianglePlane(
-				vec3(float(z), -2.5f, float(x)), vec3(float(z - 1) + EPSILON, -2.5f, float(x)),
-				vec3(float(z), -2.5f, float(x - 1) + EPSILON), idx ? whittedPlaneRed : whittedPlaneYellow, objectList);
+			Plane::create(vec3(float(z), -2.5f, float(x)), vec3(float(z - 1) + EPSILON, -2.5f, float(x)),
+						  vec3(float(z), -2.5f, float(x - 1) + EPSILON), idx ? whittedPlaneRed : whittedPlaneYellow,
+						  objectList);
 			idx = (idx + 1) % 2;
 		}
 		zIdx = (zIdx + 1) % 2;
@@ -282,8 +287,7 @@ void Micromaterials(TriangleList *objectList)
 	objectList->loadModel("models/sphere.obj", 1.0f, translate(mat4(1.0f), vec3(2.5f, -1.1f, -4.5f)), sphereIdx);
 	objectList->loadModel("models/sphere.obj", 1.0f, translate(mat4(1.0f), vec3(5.0f, -1.1f, -4.5f)), sphereIdx);
 
-	TrianglePlane::create(vec3(4.0f, 6.0f, 1.0f), vec3(-4.0f, 6.0f, 1.0f), vec3(4.0f, 6.0f, -3.0f), lightIdx,
-						  objectList);
+	Plane::create(vec3(4.0f, 6.0f, 1.0f), vec3(-4.0f, 6.0f, 1.0f), vec3(4.0f, 6.0f, -3.0f), lightIdx, objectList);
 
 	int zIdx = 0;
 	for (int z = -10; z < 10; z++)
@@ -291,15 +295,14 @@ void Micromaterials(TriangleList *objectList)
 		int idx = zIdx;
 		for (int x = -20; x < 2; x++)
 		{
-			prims::TrianglePlane::create(vec3(float(z), -2.5f, float(x)), vec3(float(z - 1) + EPSILON, -2.5f, float(x)),
-										 vec3(float(z), -2.5f, float(x - 1) + EPSILON), idx ? redIdx : yellowIdx,
-										 objectList, true);
+			Plane::create(vec3(float(z), -2.5f, float(x)), vec3(float(z - 1) + EPSILON, -2.5f, float(x)),
+						  vec3(float(z), -2.5f, float(x - 1) + EPSILON), idx ? redIdx : yellowIdx, objectList, true);
 			idx = (idx + 1) % 2;
 		}
 		zIdx = (zIdx + 1) % 2;
 	}
 
-	const auto dragMat = Material::fresnel(vec3(1.0f, .8f, .8f), 1.2f, vec3(0.0f));
+	const auto dragMat = Material::fresnel(vec3(0.7f, .7f, 1.f), 1.2f, vec3(0.0f));
 	const unsigned int dragIdx = mManager->AddMaterial(dragMat);
 	objectList->loadModel(
 		"models/dragon.obj", 3.0f,

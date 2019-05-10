@@ -5,27 +5,27 @@
 
 typedef struct
 {
-    float3 origin;	 // 16
-    float3 direction;  // 32
-    float3 throughput; // 48
-    float3 lastNormal; // 64
+	float3 origin;	 // 16
+	float3 direction;  // 32
+	float3 throughput; // 48
+	float3 lastNormal; // 64
 
-    float t;		  // 68
-    int hit_idx;	  // 72
-    int index;		  // 74
-    int bounces;	  // 80
-    uint lastMatType; // 84
-    float NdotL;      //88
+	float t;		  // 68
+	int hit_idx;	  // 72
+	int index;		  // 74
+	int bounces;	  // 80
+	uint lastMatType; // 84
+	float NdotL;	  // 88
 } Ray;
 
 typedef struct
 {
-    float3 origin;	// 16
-    float3 direction; // 32
-    float3 color;	 // 48
-    float t;		  // 52
-    int hit_idx;	  // 56
-    float d0, d1;	 // 64, dummy values
+	float3 origin;	// 16
+	float3 direction; // 32
+	float3 color;	 // 48
+	float t;		  // 52
+	int hit_idx;	  // 56
+	float d0, d1;	 // 64, dummy values
 } ShadowRay;
 
 bool r_valid(Ray r);
@@ -38,98 +38,85 @@ float3 sampleCos(float r1, float r2);
 void worldToLocal(float3 N, float3 *Nt, float3 *Nb);
 float3 localToWorld(float3 sample, float3 Nt, float3 Nb, float3 normal);
 
-inline bool r_valid(Ray r) {
-    return r.t < 1e34f;
-}
+inline bool r_valid(Ray r) { return r.t < 1e34f; }
 
-float3 r_reflect(float3 dir, float3 normal) {
-    return dir - 2.0f * normal * dot(dir, normal);
-}
+float3 r_reflect(float3 dir, float3 normal) { return dir - 2.0f * normal * dot(dir, normal); }
 
 inline float3 r_refract(bool backFacing, Material mat, float3 *org, float3 *dir, float3 N, uint *seed, float t)
 {
-    float3 absorption = (float3)(1, 1, 1);
-    float3 D = *dir;
-    *dir = r_reflect(D, N);
+	float3 absorption = (float3)(1, 1, 1);
+	float3 D = *dir;
+	*dir = r_reflect(D, N);
 
-    const float n1 = backFacing ? 1.0f : mat.refractionIdx;
-    const float n2 = backFacing ? mat.refractionIdx : 1.0f;
-    const float n = n1 / n2;
-    const float cosTheta = dot(N, D);
-    const float k = 1.0f - (n * n) * (1.0f - cosTheta * cosTheta);
-    const float rand1 = RandomFloat(seed);
+	const float n1 = backFacing ? 1.0f : mat.refractionIdx;
+	const float n2 = backFacing ? mat.refractionIdx : 1.0f;
+	const float n = n1 / n2;
+	const float cosTheta = dot(N, D);
+	const float k = 1.0f - (n * n) * (1.0f - cosTheta * cosTheta);
+	const float rand1 = RandomFloat(seed);
 
-    if (k > 0)
-    {
-        const float a = n1 - n2;
-        const float b = n1 + n2;
-        const float R0 = (a * a) / (b * b);
-        const float c = 1.0f - cosTheta;
-        const float fR = R0 + (1.0f - R0) * (c * c * c * c * c);
+	if (k > 0)
+	{
+		const float a = n1 - n2;
+		const float b = n1 + n2;
+		const float R0 = (a * a) / (b * b);
+		const float c = 1.0f - cosTheta;
+		const float fR = R0 + (1.0f - R0) * (c * c * c * c * c);
 
-        if (rand1 > fR)
-        {
-            if (backFacing)
-                absorption = (float3)(exp(-mat.absorptionR * t), exp(-mat.absorptionG * t), exp(-mat.absorptionB * t));
-            *org += EPSILON * -N;
-            *dir = normalize(n * D + N * (n * cosTheta - sqrt(k)));
-        }
-        else
-        {
-            *org += EPSILON * N;
-        }
-    }
-    else
-    {
-        *org += EPSILON * N;
-    }
+		if (rand1 > fR)
+		{
+			if (backFacing)
+				absorption = (float3)(exp(-mat.absorptionR * t), exp(-mat.absorptionG * t), exp(-mat.absorptionB * t));
+			*dir = normalize(n * D + N * (n * cosTheta - sqrt(k)));
+		}
+	}
 
-    return absorption;
+	return absorption;
 }
 
 float3 r_diffuse_reflect(float3 normal, uint *seed)
 {
-    float3 Nt, Nb;
-    worldToLocal(normal, &Nt, &Nb);
-    float3 sample = sampleHemi(RandomFloat(seed), RandomFloat(seed));
-    return normalize(localToWorld(sample, Nt, Nb, normal));
+	float3 Nt, Nb;
+	worldToLocal(normal, &Nt, &Nb);
+	float3 sample = sampleHemi(RandomFloat(seed), RandomFloat(seed));
+	return normalize(localToWorld(sample, Nt, Nb, normal));
 }
 
 float3 r_cos_reflect(float3 normal, uint *seed)
 {
-    float3 Nt, Nb;
-    worldToLocal(normal, &Nt, &Nb);
-    float3 sample = sampleCos(RandomFloat(seed), RandomFloat(seed));
-    return normalize(localToWorld(sample, Nt, Nb, normal));
+	float3 Nt, Nb;
+	worldToLocal(normal, &Nt, &Nb);
+	float3 sample = sampleCos(RandomFloat(seed), RandomFloat(seed));
+	return normalize(localToWorld(sample, Nt, Nb, normal));
 }
 
 float3 sampleHemi(float r1, float r2)
 {
-    float r = sqrt(1.f - r1 * r1);
-    float phi = 2.0f * PI * r2;
-    float x = r * cos(phi);
-    float y = r * sin(phi);
-    return (float3)(x, y, r1);
+	float r = sqrt(1.f - r1 * r1);
+	float phi = 2.0f * PI * r2;
+	float x = r * cos(phi);
+	float y = r * sin(phi);
+	return (float3)(x, y, r1);
 }
 
 float3 sampleCos(float r1, float r2)
 {
-    const float r = sqrt(r1);
-    const float theta = 2.0f * PI * r2;
-    const float x = r * cos(theta);
-    const float y = r * sin(theta);
-    return normalize((float3)(x, y, fmax(0.0f, sqrt(1.0f - r1))));
+	const float r = sqrt(r1);
+	const float theta = 2.0f * PI * r2;
+	const float x = r * cos(theta);
+	const float y = r * sin(theta);
+	return normalize((float3)(x, y, fmax(0.0f, sqrt(1.0f - r1))));
 }
 
 void worldToLocal(float3 N, float3 *Nt, float3 *Nb)
 {
-    const float3 w = fabs(N.x) > 0.99f ? ((float3)(0.0f, 1.0f, 0.0f)) : ((float3)(1.0f, 0.0f, 0.0f));
-    *Nt = normalize(cross(N, w));
-    *Nb = cross(N, *Nt);
+	const float3 w = fabs(N.x) > 0.99f ? ((float3)(0.0f, 1.0f, 0.0f)) : ((float3)(1.0f, 0.0f, 0.0f));
+	*Nt = normalize(cross(N, w));
+	*Nb = cross(N, *Nt);
 }
 
 float3 localToWorld(float3 sample, float3 Nt, float3 Nb, float3 normal)
 {
-    return sample.x * Nt + sample.y * Nb + sample.z * normal;
+	return sample.x * Nt + sample.y * Nb + sample.z * normal;
 }
 #endif

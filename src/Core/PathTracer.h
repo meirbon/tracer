@@ -102,12 +102,10 @@ class PathTracer : public Renderer
 	std::vector<float> m_LightLotteryTickets;
 	float m_LightArea;
 	unsigned int m_LightCount;
-	Surface *m_SkyBox = nullptr;
 	bool m_SkyboxEnabled = false;
+	Surface *m_SkyBox = nullptr;
 	Camera *m_Camera;
 	const MaterialManager *m_Materials;
-
-	int m_Tiles;
 
 	ctpl::ThreadPool *tPool = nullptr;
 	std::vector<std::future<void>> tResults{};

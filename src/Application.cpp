@@ -16,7 +16,6 @@
 static std::deque<float> frametimes = {};
 static int lastMode = 0;
 static int renderMode = 0;
-static float maxFrametime = 10.0f;
 auto *gameObjects = new std::vector<bvh::GameObject *>();
 
 bvh::GameObject *motherGameObject;
@@ -48,8 +47,8 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 	{
 		//		else
 		//			Dragon(m_ObjectList);
-		// Micromaterials(m_ObjectList);
-		CornellBox(m_ObjectList);
+		Micromaterials(m_ObjectList);
+		//		CornellBox(m_ObjectList);
 	}
 	else
 	{
@@ -61,8 +60,8 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 		}
 		else
 		{
-			CornellBox(triangleList);
-			// Micromaterials(triangleList);
+			//			CornellBox(triangleList);
+			Micromaterials(triangleList);
 			// const auto lightMat = Material::light(vec3(10.0f));
 			// const unsigned int lightIdx = MaterialManager::GetInstance()->AddMaterial(lightMat);
 			// prims::TrianglePlane::create(vec3(100.0f, 100.0f, 10.0f), vec3(-100.0f, 100.0f, 10.0f),
@@ -290,8 +289,11 @@ Application::~Application()
 	delete triangleList;
 }
 
-void Application::Tick(float deltaTime) noexcept
+void Application::Tick(float) noexcept
 {
+	if (m_Camera.isDirty && m_Renderer)
+		m_Renderer->Reset();
+
 	if (!m_DynamicLocked && (m_Type == CPU || m_Type == CPU_RAYTRACER))
 	{
 		if (m_DBVHBuildTimer.elapsed() > 1000.0f)
@@ -433,7 +435,6 @@ void Application::Draw(float deltaTime)
 	for (auto ft : frametimes)
 		avgFrametime += ft;
 
-	maxFrametime = 0.0f;
 	frametimes.push_back(deltaTime);
 
 	ImGui::Begin("Information");

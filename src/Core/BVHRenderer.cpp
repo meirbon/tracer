@@ -21,9 +21,6 @@ void BVHRenderer::Render(Surface *output)
 	m_Width = output->GetWidth();
 	m_Height = output->GetHeight();
 
-	const int vTiles = m_Height / TILE_HEIGHT;
-	const int hTiles = m_Width / TILE_WIDTH;
-
 	for (int i = 0; i < ctpl::nr_of_cores; i++)
 	{
 		tResults.push_back(m_TPool->push([i, this, output](int) {
@@ -49,14 +46,12 @@ void BVHRenderer::Render(Surface *output)
 	}
 
 	for (auto &tResult : tResults)
-	{
 		tResult.get();
-	}
 
 	tResults.clear();
 }
 
-void BVHRenderer::Resize(gl::Texture *newOutput) {}
+void BVHRenderer::Resize(gl::Texture *) {}
 
 void BVHRenderer::SwitchSkybox() {}
 } // namespace core

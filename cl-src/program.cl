@@ -4,8 +4,8 @@ typedef struct
 {
 	float3 origin;
 	float3 viewDirection;
-  	float3 vertical;
-  	float3 horizontal;
+	float3 vertical;
+	float3 horizontal;
 
 	float viewDistance;
 	float invWidth;
@@ -54,7 +54,7 @@ kernel void generate(write_only image2d_t outimg, // 0
 		r.t = 1e34f;
 
 		r.direction = normalize(camera->viewDirection + camera->horizontal * ScreenX + camera->vertical * ScreenY);
-		r.hit_idx = -1;
+		r.hit_idx = RAY_MASK_NO_HIT;
 
 		r.throughput = (float3)(1, 1, 1);
 		r.lastNormal = (float3)(0);
@@ -117,7 +117,8 @@ kernel void connect(global ShadowRay *sRays,	   // 0
 kernel void draw(write_only image2d_t outimg, // 0
 				 global float4 *colorBuffer,  // 1
 				 int width,					  // 2
-				 int height					  // 3
+				 int height,				  // 3
+				 int frames					  // 4
 )
 {
 	int intx = get_global_id(0);
@@ -125,9 +126,10 @@ kernel void draw(write_only image2d_t outimg, // 0
 	if (intx >= width || inty >= height)
 		return;
 	int pixelIdx = intx + inty * width;
-	const float4 color = colorBuffer[pixelIdx];
 
+	const float4 color = colorBuffer[pixelIdx];
 	const float3 exponent = (float3)(1.0f / 2.2f);
-	const float3 col = pow(color.xyz / fmax(colorBuffer[pixelIdx].w, 1.0f), exponent);
+	const float3 col = pow(color.xyz / (fmax(color.w, 1.0f)), exponent);
+
 	write_imagef(outimg, (int2)(intx, inty), (float4)(col, 1.f));
 }

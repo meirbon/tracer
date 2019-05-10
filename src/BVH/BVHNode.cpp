@@ -19,7 +19,7 @@ bvh::BVHNode::BVHNode(int leftFirst, int count, AABB bounds)
     : bounds(bounds)
 {
     SetLeftFirst(leftFirst);
-    SetCount(-1);
+    SetCount(count);
 }
 
 bool bvh::BVHNode::Intersect(const core::Ray& r) const

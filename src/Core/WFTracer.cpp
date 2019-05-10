@@ -77,7 +77,7 @@ WFTracer::~WFTracer()
 	delete wDrawKernel;
 }
 
-void WFTracer::Render(Surface *output)
+void WFTracer::Render(Surface *)
 {
 	m_Frame++;
 
@@ -85,10 +85,12 @@ void WFTracer::Render(Surface *output)
 	wShadeRefKernel->setArgument(21, m_Frame);
 	wShadeNeeKernel->setArgument(21, m_Frame);
 	wShadeMisKernel->setArgument(21, m_Frame);
+	wDrawKernel->setArgument(4, m_Frame);
 
 	wGenerateRayKernel->run(outputBuffer);
 	wIntersectKernel->run();
 
+	Kernel::syncQueue();
 	auto result = m_Camera->updateGPUBufferAsync();
 
 	switch (m_Mode)
@@ -116,6 +118,8 @@ void WFTracer::Render(Surface *output)
 
 void WFTracer::Reset()
 {
+	colorBuffer->clear();
+	outputBuffer->clear();
 	m_Samples = 0;
 	m_Frame = 0;
 }

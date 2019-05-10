@@ -183,15 +183,13 @@ void TopLevelBVH::ConstructBVH()
 	dynamicBuild.get();
 } // namespace bvh
 
-AABB TopLevelBVH::GetNodeBounds(unsigned int index) { return {}; }
+AABB TopLevelBVH::GetNodeBounds(unsigned int) { return {}; }
 
 unsigned int TopLevelBVH::GetPrimitiveCount()
 {
 	unsigned int c = 0;
 	for (auto &n : m_DynamicNodes)
-	{
 		c += n.gameObject->m_BVHTree->GetPrimitiveCount();
-	}
 
 	return m_StaticBVHTree->GetPrimitiveCount() + c;
 }
@@ -204,9 +202,7 @@ std::future<void> TopLevelBVH::ConstructNewDynamicBVHParallel(int newIndex)
 void TopLevelBVH::ConstructDynamicBVH(int newIndex)
 {
 	if (m_DynamicNodes.empty())
-	{
 		return;
-	}
 
 	utils::Timer t;
 	CanUseDynamicBVH[newIndex] = false;
@@ -273,24 +269,21 @@ void TopLevelBVH::FlattenGameObjects()
 
 void TopLevelBVH::IntersectDynamicWithStack(core::Ray &r) const
 {
+	BVHTraversal todo[32];
 	if (m_DynamicNodes.empty())
-	{
 		return;
-	}
 
 	int stackptr = 0;
-	BVHTraversal todo[64];
 	float t1near, t1far;
 	float t2near, t2far;
 	const auto &objects = m_DynamicNodes;
 
-	if (!m_DynamicBVHTree[m_DynamicTreeIndex][0].Intersect(r))
-	{
+	if (!m_DynamicBVHTree[m_DynamicTreeIndex][0].Intersect(r, t1near, t1far))
 		return;
-	}
 
 	// "Push" on the root node to the working set
 	todo[stackptr].nodeIdx = 0;
+	todo[stackptr].tNear = t1near;
 
 	while (stackptr >= 0)
 	{
@@ -310,9 +303,7 @@ void TopLevelBVH::IntersectDynamicWithStack(core::Ray &r) const
 		if (node.IsLeaf())
 		{ // Leaf node
 			for (int idx = node.bounds.leftFirst; idx < node.bounds.leftFirst + node.bounds.count; idx++)
-			{
 				objects[m_DynamicIndices[m_DynamicTreeIndex][idx]].Traverse(r);
-			}
 		}
 		else
 		{ // Not a leaf

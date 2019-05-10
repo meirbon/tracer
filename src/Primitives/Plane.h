@@ -1,16 +1,16 @@
 #pragma once
 
+#include <tuple>
+
 #include "Core/Ray.h"
 #include "Materials/Material.h"
-#include "Primitives/Triangle.h"
-#include "Primitives/TriangleList.h"
 #include "Primitives/SceneObject.h"
 #include "Primitives/SceneObjectList.h"
+#include "Primitives/Triangle.h"
+#include "Primitives/TriangleList.h"
 
 namespace prims
 {
-struct GpuTriangle;
-class GpuTriangleList;
 
 class Plane : public SceneObject
 {
@@ -32,30 +32,11 @@ class Plane : public SceneObject
 									  RandomGenerator &rng) const override;
 	glm::vec3 GetNormal(const glm::vec3 &hitPoint) const override;
 	glm::vec2 GetTexCoords(const glm::vec3 &hitPoint) const override;
+
+	static std::tuple<Triangle *, Triangle *> create(glm::vec3 topRight, glm::vec3 topLeft, glm::vec3 bottomRight,
+													 uint matIndex, SceneObjectList *objectList);
+	static void create(vec3 topRight, vec3 topLeft, vec3 bottomRight, uint matIndex, TriangleList *tList,
+					   bool flipNormal = false);
 };
 
-class TrianglePlane : public SceneObject
-{
-  public:
-	TrianglePlane() = default;
-	/**
-	 * p0 is top-right, p1 = top-left, p2 = bottom-left, p3 = bottom-right
-	 */
-	TrianglePlane(glm::vec3 topRight, glm::vec3 topLeft, glm::vec3 bottomRight, uint matIndex,
-				  SceneObjectList *objectList);
-
-	static void create(vec3 topRight, vec3 topLeft, vec3 bottomRight, uint matIndex, TriangleList *tList, bool flipNormal = false);
-	~TrianglePlane() override = default;
-
-	glm::vec3 m_Normal{};
-	Triangle *m_T1{};
-	Triangle *m_T2{};
-
-	void Intersect(core::Ray &r) const override;
-	bvh::AABB GetBounds() const override;
-	glm::vec3 GetRandomPointOnSurface(const glm::vec3 &direction, glm::vec3 &lNormal,
-									  RandomGenerator &rng) const override;
-	glm::vec3 GetNormal(const glm::vec3 &hitPoint) const override;
-	glm::vec2 GetTexCoords(const glm::vec3 &hitPoint) const override;
-};
 } // namespace prims

@@ -8,13 +8,10 @@ Plane::Plane(vec3 normal, float offset, uint matIdx, vec3 dimMin, vec3 dimMax)
 	this->m_Normal = normalize(normal);
 	vec3 helpNormal;
 	if (fabs(m_Normal.x) > fabs(m_Normal.y))
-	{
 		helpNormal = glm::vec3(m_Normal.z, 0.f, -m_Normal.x) / sqrtf(m_Normal.x * m_Normal.x + m_Normal.z * m_Normal.z);
-	}
 	else
-	{
 		helpNormal = glm::vec3(0.f, -m_Normal.z, m_Normal.y) / sqrtf(m_Normal.y * m_Normal.y + m_Normal.z * m_Normal.z);
-	}
+
 	this->m_Right = normalize(cross(normal, helpNormal));
 	this->m_Forward = normalize(cross(m_Right, m_Normal));
 
@@ -41,11 +38,6 @@ void Plane::Intersect(core::Ray &r) const
 
 	if (t < EPSILON) // Intersection is behind the ray
 		return;
-
-	const vec3 p = r.GetHitpoint();
-
-	//if (p.x < dimMin.x || p.z < dimMin.z || p.x > dimMax.x || p.z > dimMax.z || p.y < dimMin.y || p.y > dimMax.y)
-	//	return;
 
 	if (r.t > t)
 	{
@@ -82,12 +74,13 @@ glm::vec2 Plane::GetTexCoords(const glm::vec3 &hitPoint) const
 	return vec2(u, v);
 }
 
-glm::vec3 Plane::GetNormal(const glm::vec3 &hitPoint) const { return m_Normal; }
+glm::vec3 Plane::GetNormal(const glm::vec3 &) const { return m_Normal; }
 
 /**
  * p0 is top-right, p1 = top-left, p2 = bottom-right
  */
-TrianglePlane::TrianglePlane(vec3 topRight, vec3 topLeft, vec3 bottomRight, uint matIndex, SceneObjectList *objectList)
+std::tuple<Triangle *, Triangle *> Plane::create(vec3 topRight, vec3 topLeft, vec3 bottomRight, uint matIndex,
+												 SceneObjectList *objectList)
 {
 	// find top-left point
 	const float minX = fmin(topRight.x, fmin(topLeft.x, bottomRight.x));
@@ -101,12 +94,6 @@ TrianglePlane::TrianglePlane(vec3 topRight, vec3 topLeft, vec3 bottomRight, uint
 	auto *t2 = new Triangle(bottomRight, topLeft, p3, matIndex);
 	const auto m = MaterialManager::GetInstance()->GetMaterial(matIndex);
 
-	materialIdx = matIndex;
-	m_Normal = normalize(cross(topLeft - topRight, bottomRight - topRight));
-
-	this->m_T1 = t1;
-	this->m_T2 = t2;
-
 	if (m.type == Light)
 	{
 		objectList->AddLight(t1);
@@ -117,48 +104,11 @@ TrianglePlane::TrianglePlane(vec3 topRight, vec3 topLeft, vec3 bottomRight, uint
 		objectList->AddObject(t1);
 		objectList->AddObject(t2);
 	}
+
+	return std::make_tuple(t1, t2);
 }
 
-void TrianglePlane::Intersect(core::Ray &r) const
-{
-	m_T1->Intersect(r);
-	m_T2->Intersect(r);
-}
-
-bvh::AABB TrianglePlane::GetBounds() const
-{
-	bvh::AABB bounds = m_T1->GetBounds();
-	bounds.Grow(m_T2->GetBounds());
-	return bounds;
-}
-
-glm::vec3 TrianglePlane::GetRandomPointOnSurface(const glm::vec3 &direction, glm::vec3 &lNormal,
-												 RandomGenerator &rng) const
-{
-	if (rng.Rand(1.f) <= .5f)
-	{
-		return m_T1->GetRandomPointOnSurface(direction, lNormal, rng);
-	}
-	else
-	{
-		return m_T2->GetRandomPointOnSurface(direction, lNormal, rng);
-	}
-}
-
-glm::vec3 TrianglePlane::GetNormal(const glm::vec3 &hitPoint) const { return m_Normal; }
-
-glm::vec2 TrianglePlane::GetTexCoords(const glm::vec3 &hitPoint) const
-{
-	auto t0 = m_T1->GetTexCoords(hitPoint);
-	auto t1 = m_T2->GetTexCoords(hitPoint);
-
-	if (t0.x < 0.0f || t0.x > 1.0f || t0.y < 0.0f || t0.y > 1.0f)
-		return t1;
-
-	return t0;
-}
-
-void TrianglePlane::create(vec3 topRight, vec3 topLeft, vec3 bottomRight, uint matIndex, TriangleList *tList, bool flipNormal)
+void Plane::create(vec3 topRight, vec3 topLeft, vec3 bottomRight, uint matIndex, TriangleList *tList, bool flipNormal)
 {
 	// find top-left point
 	const vec3 p3 = min(topRight, min(topLeft, bottomRight));

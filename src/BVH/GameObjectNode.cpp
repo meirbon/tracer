@@ -74,7 +74,6 @@ void GameObjectNode::Traverse(core::Ray &rOrg) const
 
 unsigned int GameObjectNode::TraverseDebug(core::Ray &rOrg) const
 {
-	unsigned int depth = 0;
 	const vec4 org = transformationMat * vec4(rOrg.origin, 1.f);
 	const vec4 dir = transformationMat * vec4(rOrg.direction, 0.f);
 	core::Ray r = {{org.x, org.y, org.z}, {dir.x, dir.y, dir.z}};
