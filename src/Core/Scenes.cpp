@@ -159,16 +159,21 @@
 //	prims::Load("models/nanosuit/nanosuit.obj", teapotMaterial, vec3(0.f, -1.f, -5.f), 1.f, objectList);
 //}
 //
-// void CornellBox(prims::SceneObjectList *objectList)
-//{
-//	auto *mManager = MaterialManager::GetInstance();
-//
-//	const unsigned int objectMaterialIdx =
-//		mManager->AddMaterial(Material(1.f, vec3(0.4f, 0.5f, 0.4f), 50.f, 1.f, 0.f, vec3(0.f, 0.f, 0.f)));
-//	prims::Load("models/cornellbox/CornellBox-Original.obj", objectMaterialIdx, vec3(0.f, -2.5f, -11.f), 5.f,
-//				objectList);
-//}
-//
+void CornellBox(prims::SceneObjectList *objectList)
+{
+	auto *mManager = MaterialManager::GetInstance();
+	const unsigned int objectMaterialIdx = mManager->AddMaterial(Material::lambertian(vec3(1.0f)));
+	prims::Load("models/cornellbox/CornellBox-Original.obj", objectMaterialIdx, vec3(0.f, -2.5f, -11.f), 5.f,
+				objectList);
+}
+
+void CornellBox(TriangleList *objectList)
+{
+	auto *mManager = MaterialManager::GetInstance();
+	const unsigned int objectMaterialIdx = mManager->AddMaterial(Material::lambertian(vec3(1.0f)));
+	objectList->loadModel("models/cornellbox/CornellBox-Original.obj", objectMaterialIdx);
+}
+
 // void CBox(prims::SceneObjectList *objectList)
 //{
 //	auto *mManager = MaterialManager::GetInstance();
@@ -215,220 +220,43 @@
 //						 objectList);
 //}
 //
-// void Micromaterials(prims::SceneObjectList *objectList)
-//{
-//	auto *mManager = MaterialManager::GetInstance();
-//
-//	const vec3 yellow = vec3(float(0xFC) / 255.99f, float(0xEE) / 255.99f, float(0x0E) / 255.59f);
-//	const vec3 red = vec3(float(0xE0) / 255.99f, float(0x25) / 255.99f, float(0x0B) / 255.59f);
-//	const unsigned int sphereMaterialIdx1 =
-//		mManager->AddMaterial(Material(1.f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
-//	const unsigned int sphereMaterialIdx2 =
-//		mManager->AddMaterial(Material(0.5f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
-//	const unsigned int sphereMaterialIdx3 =
-//		mManager->AddMaterial(Material(0.2f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
-//	const unsigned int sphereMaterialIdx4 =
-//		mManager->AddMaterial(Material(0.05f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
-//	const unsigned int sphereMaterialIdx5 =
-//		mManager->AddMaterial(Material(0.0001f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
-//	const unsigned int whittedPlaneYellow = mManager->AddMaterial(Material(1, yellow, 4, 1.f, 0.f, vec3(0.f)));
-//	const unsigned int whittedPlaneRed = mManager->AddMaterial(Material(0.01f, red, 4, 1.f, 0.f, vec3(0.f)));
-//	const unsigned int lightMat = mManager->AddMaterial(Material(vec3(5.0f), .5f));
-//
-//	prims::Load("models/sphere.obj", sphereMaterialIdx1, vec3(-5.f, -1.1f, -4.5f), .05f, objectList);
-//	prims::Load("models/sphere.obj", sphereMaterialIdx2, vec3(-2.5f, -1.1f, -4.5f), .05f, objectList);
-//	prims::Load("models/sphere.obj", sphereMaterialIdx3, vec3(0.f, -1.1f, -4.5f), .05f, objectList);
-//	prims::Load("models/sphere.obj", sphereMaterialIdx4, vec3(2.5f, -1.1f, -4.5f), .05f, objectList);
-//	prims::Load("models/sphere.obj", sphereMaterialIdx5, vec3(5.f, -1.1f, -4.5f), .05f, objectList);
-//
-//	auto tp = prims::TrianglePlane(vec3(4.0f, 6.0f, 1.0f), vec3(-4.0f, 6.0f, 1.0f), vec3(4.0f, 6.0f, -3.0f), lightMat,
-//								   objectList);
-//
-//	int zIdx = 0;
-//	for (int z = -10; z < 10; z++)
-//	{
-//		int idx = zIdx;
-//		for (int x = -20; x < 2; x++)
-//		{
-//			auto t = prims::TrianglePlane(
-//				vec3(float(z), -2.5f, float(x)), vec3(float(z - 1) + EPSILON, -2.5f, float(x)),
-//				vec3(float(z), -2.5f, float(x - 1) + EPSILON), idx ? whittedPlaneRed : whittedPlaneYellow, objectList);
-//			idx = (idx + 1) % 2;
-//		}
-//		zIdx = (zIdx + 1) % 2;
-//	}
-//}
-//
-// void Micromaterials(prims::GpuTriangleList *objectList)
-//{
-//	auto *mManager = MaterialManager::GetInstance();
-//
-//	const vec3 yellow = vec3(float(0xFC) / 255.99f, float(0xEE) / 255.99f, float(0x0E) / 255.59f);
-//	const vec3 red = vec3(float(0xE0) / 255.99f, float(0x25) / 255.99f, float(0x0B) / 255.59f);
-//	const unsigned int sphereMaterialIdx1 =
-//		mManager->AddMaterial(Material(1.f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
-//	const unsigned int sphereMaterialIdx2 =
-//		mManager->AddMaterial(Material(0.5f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
-//	const unsigned int sphereMaterialIdx3 =
-//		mManager->AddMaterial(Material(0.2f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
-//	const unsigned int sphereMaterialIdx4 =
-//		mManager->AddMaterial(Material(0.1f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
-//	const unsigned int sphereMaterialIdx5 =
-//		mManager->AddMaterial(Material(0.01f, vec3(1.f, 1.f, 1.f), 12, 1.54f, 0.f, vec3(0.0f)));
-//	const unsigned int whittedPlaneYellow = mManager->AddMaterial(Material(1, yellow, 4, 1.f, 0.f, vec3(0.f)));
-//	const unsigned int whittedPlaneRed = mManager->AddMaterial(Material(0.01f, red, 4, 1.f, 0.f, vec3(0.f)));
-//	const unsigned int lightMat = mManager->AddMaterial(Material(vec3(1.f), .5f));
-//
-//	prims::Load("models/sphere.obj", sphereMaterialIdx1, vec3(-5.f, -1.1f, -4.5f), .05f, objectList);
-//	prims::Load("models/sphere.obj", sphereMaterialIdx2, vec3(-2.5f, -1.1f, -4.5f), .05f, objectList);
-//	prims::Load("models/sphere.obj", sphereMaterialIdx3, vec3(0.f, -1.1f, -4.5f), .05f, objectList);
-//	prims::Load("models/sphere.obj", sphereMaterialIdx4, vec3(2.5f, -1.1f, -4.5f), .05f, objectList);
-//	prims::Load("models/sphere.obj", sphereMaterialIdx5, vec3(5.f, -1.1f, -4.5f), .05f, objectList);
-//
-//	auto tp = prims::TrianglePlane(vec3(4.0f, 6.0f, 1.0f), vec3(-4.0f, 6.0f, 1.0f), vec3(4.0f, 6.0f, -3.0f), lightMat,
-//								   objectList);
-//	// prims::Load("models/sphere.obj", lightMat, vec3(0.f, 8.f, 0.f), .05f,
-//	// objectList);
-//
-//	int zIdx = 0;
-//	for (int z = -10; z < 10; z++)
-//	{
-//		int idx = zIdx;
-//		for (int x = -20; x < 2; x++)
-//		{
-//			auto t = prims::TrianglePlane(
-//				vec3(float(z), -2.5f, float(x)), vec3(float(z - 1) + EPSILON, -2.5f, float(x)),
-//				vec3(float(z), -2.5f, float(x - 1) + EPSILON), idx ? whittedPlaneRed : whittedPlaneYellow, objectList);
-//			idx = (idx + 1) % 2;
-//		}
-//		zIdx = (zIdx + 1) % 2;
-//	}
-//}
-//
-// void whittedScene(prims::GpuTriangleList *objectList)
-//{
-//	auto *mManager = MaterialManager::GetInstance();
-//
-//	const vec3 yellow = vec3(float(0xFC) / 255.99f, float(0xEE) / 255.99f, float(0x0E) / 255.59f);
-//	const vec3 red = vec3(float(0xE0) / 255.99f, float(0x25) / 255.99f, float(0x0B) / 255.59f);
-//	const unsigned int sphereGlassMaterialIdx =
-//		mManager->AddMaterial(Material(0.f, vec3(1.f, 1.f, 1.f), 12, 1.54f, .99f, vec3(0.f)));
-//	const unsigned int mirrorMaterial = mManager->AddMaterial(Material(.8f, vec3(1.f, .3f, .3f), 4, 1.f, 0, vec3(0.f)));
-//	const unsigned int whittedPlaneYellow = mManager->AddMaterial(Material(1.0f, yellow, 4, 1.f, 0.f, vec3(0.f)));
-//	const unsigned int whittedPlaneRed = mManager->AddMaterial(Material(0.1f, red, 4, 1.f, 0.f, vec3(0.f)));
-//	const unsigned int lightMat = mManager->AddMaterial(Material(vec3(200.f), .5f));
-//
-//	prims::Load("models/sphere.obj", sphereGlassMaterialIdx, vec3(0.f, -1.1f, -4.5f), .05f, objectList);
-//	prims::Load("models/sphere.obj", mirrorMaterial, vec3(1.8f, -.5f, -6.5f), .05f, objectList);
-//	prims::Load("models/sphere.obj", lightMat, vec3(0.f, 8.f, 0.f), .05f, objectList);
-//	prims::Load("models/cube/cube.obj", sphereGlassMaterialIdx, vec3(0.f, 0, -3.f), .5f, objectList);
-//	prims::Load("models/cube/cube2.obj", sphereGlassMaterialIdx, vec3(1.f, .5f, -3.f), .5f, objectList);
-//
-//	int zIdx = 0;
-//	for (int z = -39; z < 1; z++)
-//	{
-//		int idx = zIdx;
-//		for (int x = -2; x < 10; x++)
-//		{
-//			auto tp = prims::TrianglePlane(vec3(float(x), -2.5f, float(z)),
-//										   vec3(float(x - 1) + 2.0f * EPSILON, -2.5f, float(z)),
-//										   vec3(float(x), -2.5f, float(z - 1) + 2.0f * EPSILON),
-//										   idx ? whittedPlaneRed : whittedPlaneYellow, objectList);
-//			idx = (idx + 1) % 2;
-//		}
-//		zIdx = (zIdx + 1) % 2;
-//	}
-//}
-//
-// void NanoSuit(prims::GpuTriangleList *objectList)
-//{
-//	auto *mManager = MaterialManager::GetInstance();
-//
-//	const unsigned int lightMat1 = mManager->AddMaterial(Material(vec3(10.f, 12.f, 8.f), 1.f));
-//	const unsigned int planeMaterialIdx = mManager->AddMaterial(Material(.01f, vec3(1.f), 2, 1.f, 0.f, vec3(0.f)));
-//
-//	prims::Load("models/sphere.obj", lightMat1, vec3(0.f, 12.f, 10.f), .1f, objectList);
-//	auto tp = prims::TrianglePlane(vec3(50.f, 0.f, 50.f), vec3(-50.f, -1.f, 50.f), vec3(50.f, -1.f, -50.f),
-//								   planeMaterialIdx, objectList);
-//	prims::Load("models/nanosuit/nanosuit.obj", 0, vec3(0.f, -1.f, -5.f), 1.f, objectList);
-//}
-//
-// void CornellBox(prims::GpuTriangleList *objectList)
-//{
-//	auto *mManager = MaterialManager::GetInstance();
-//
-//	const unsigned int objectMaterialIdx =
-//		mManager->AddMaterial(Material(1.f, vec3(0.4f, 0.5f, 0.4f), 50.f, 1.f, 0.f, vec3(0.f, 0.f, 0.f)));
-//	prims::Load("models/cornellbox/CornellBox-Original.obj", objectMaterialIdx, vec3(0.f, -2.5f, -11.f), 5.f,
-//				objectList);
-//}
-//
-// void CBox(prims::GpuTriangleList *objectList)
-//{
-//	auto *mManager = MaterialManager::GetInstance();
-//
-//	const unsigned int objectMaterialIdx =
-//		mManager->AddMaterial(Material(1.f, vec3(0.4f, 0.5f, 0.4f), 50.f, 1.f, 0.f, vec3(0.f, 0.f, 0.f)));
-//	prims::Load("models/cbox/CornellBox-Sphere.obj", objectMaterialIdx, vec3(0.f, -2.5f, -11.f), 5.f, objectList);
-//}
-//
-// void CBoxWater(prims::GpuTriangleList *objectList)
-//{
-//	auto *mManager = MaterialManager::GetInstance();
-//
-//	const unsigned int objectMaterialIdx =
-//		mManager->AddMaterial(Material(1.f, vec3(0.4f, 0.5f, 0.4f), 50.f, 1.f, 0.f, vec3(0.f, 0.f, 0.f)));
-//	prims::Load("models/cbox/CornellBox-Water.obj", objectMaterialIdx, vec3(0.f, -2.5f, -11.f), 5.f, objectList);
-//}
-//
-// void teapotScene(prims::GpuTriangleList *objectList)
-//{
-//	auto *mManager = MaterialManager::GetInstance();
-//
-//	const unsigned int mirrorMaterial =
-//		mManager->AddMaterial(Material(1.0f, vec3(1.f, 1.f, 1.f), 4, 1.f, 0.f, vec3(0.f)));
-//	//    for (int x = -45; x < 46; x += 5) {
-//	//        for (int z = -45; z < 46; z += 5) {
-//	//            prims::Load("models/teapot.obj", mirrorMaterial, vec3(x, -1.f,
-//	//            z), .7f, objectList);
-//	//        }
-//	//    }
-//
-//	//	const unsigned int mirrorMaterial =
-//	// mManager->AddMaterial(Material(.1f, vec3(1.f, 1.f, 1.f),
-//	// 4, 1.f, 0.f, vec3(0.f)));
-//	prims::Load("models/teapot.obj", mirrorMaterial, vec3(0.f, -1.f, -5.f), 1.5f, objectList);
-//
-//	const unsigned int planeMaterialIdx =
-//		mManager->AddMaterial(Material(0.2f, vec3(.3f, .1f, .1f), 2, 1.f, 0.f, vec3(0.f)));
-//	prims::TrianglePlane(vec3(50.f, 0.f, 50.f), vec3(-50.f, -1.f, 50.f), vec3(50.f, -1.f, -50.f), planeMaterialIdx,
-//						 objectList);
-//}
-//
-// void Dragon(prims::GpuTriangleList *objectList)
-//{
-//	auto *mManager = MaterialManager::GetInstance();
-//
-//	const unsigned int lightMat = mManager->AddMaterial(Material(vec3(100.f), .5f));
-//	prims::Load("models/sphere.obj", lightMat, vec3(0.f, 17.f, -10.f), .05f, objectList);
-//
-//	const unsigned int dragMat =
-//		mManager->AddMaterial(Material(0.0001f, vec3(.8f, .8f, 1.f), 4, 1.2f, 1.f, vec3(0.0f, 0.3f, 0.3f)));
-//	prims::Load("models/dragon.obj", dragMat, vec3(0.f, -.98f, -15.f), 5.0f, objectList,
-//				glm::rotate(glm::mat4(1.0f), glm::radians(-90.f), vec3(1, 0, 0)));
-//
-//	const unsigned int planeMaterialIdx = mManager->AddMaterial(Material(1.0f, vec3(1.f), 2, 1.f, 0.f, vec3(0.f)));
-//	prims::TrianglePlane(vec3(50.f, 0.f, 50.f), vec3(-50.f, -1.f, 50.f), vec3(50.f, -1.f, -50.f), planeMaterialIdx,
-//						 objectList);
-//}
-//
-// void Sponza(prims::GpuTriangleList *objectList)
-//{
-//	auto *mManager = MaterialManager::GetInstance();
-//
-//	const unsigned int sponza = mManager->AddMaterial(Material(1, vec3(1.f, .95f, .8f), 4, 1.f, 0.f, vec3(0.f)));
-//	prims::Load("models/sponza/sponza.obj", sponza, vec3(0.f, 0.f, 0.f), .2f, objectList);
-//}
+void Micromaterials(prims::SceneObjectList *objectList)
+{
+	auto *mManager = MaterialManager::GetInstance();
+
+	const vec3 yellow = vec3(float(0xFC) / 255.99f, float(0xEE) / 255.99f, float(0x0E) / 255.59f);
+	const vec3 red = vec3(float(0xE0) / 255.99f, float(0x25) / 255.99f, float(0x0B) / 255.59f);
+	const auto sphereMaterialIdx1 = mManager->AddMaterial(Material::lambertian(vec3(1.0f), -1, -1, -1, -1, 1.0f));
+	const auto sphereMaterialIdx2 = mManager->AddMaterial(Material::lambertian(vec3(1.0f), -1, -1, -1, -1, 8.0f));
+	const auto sphereMaterialIdx3 = mManager->AddMaterial(Material::lambertian(vec3(1.0f), -1, -1, -1, -1, 16.0f));
+	const auto sphereMaterialIdx4 = mManager->AddMaterial(Material::lambertian(vec3(1.0f), -1, -1, -1, -1, 64.0f));
+	const auto sphereMaterialIdx5 = mManager->AddMaterial(Material::lambertian(vec3(1.0f), -1, -1, -1, -1, 128.0f));
+	const auto whittedPlaneYellow = mManager->AddMaterial(Material::lambertian(yellow));
+	const auto whittedPlaneRed = mManager->AddMaterial(Material::lambertian(red, -1, -1, -1, -1, 1.0f));
+	const auto lightMat = mManager->AddMaterial(Material::light(vec3(5.0f)));
+
+	objectList->AddObject(new prims::Sphere(vec3(-5.f, -1.1f, -4.5f), 1.f, sphereMaterialIdx1));
+	objectList->AddObject(new prims::Sphere(vec3(-2.5f, -1.1f, -4.5f), 1.f, sphereMaterialIdx2));
+	objectList->AddObject(new prims::Sphere(vec3(0.f, -1.1f, -4.5f), 1.f, sphereMaterialIdx3));
+	objectList->AddObject(new prims::Sphere(vec3(2.5f, -1.1f, -4.5f), 1.f, sphereMaterialIdx4));
+	objectList->AddObject(new prims::Sphere(vec3(5.f, -1.1f, -4.5f), 1.f, sphereMaterialIdx5));
+
+	auto tp = prims::TrianglePlane(vec3(4.0f, 6.0f, 1.0f), vec3(-4.0f, 6.0f, 1.0f), vec3(4.0f, 6.0f, -3.0f), lightMat,
+								   objectList);
+	int zIdx = 0;
+	for (int z = -10; z < 10; z++)
+	{
+		int idx = zIdx;
+		for (int x = -20; x < 2; x++)
+		{
+			auto t = prims::TrianglePlane(
+				vec3(float(z), -2.5f, float(x)), vec3(float(z - 1) + EPSILON, -2.5f, float(x)),
+				vec3(float(z), -2.5f, float(x - 1) + EPSILON), idx ? whittedPlaneRed : whittedPlaneYellow, objectList);
+			idx = (idx + 1) % 2;
+		}
+		zIdx = (zIdx + 1) % 2;
+	}
+}
 
 void Micromaterials(TriangleList *objectList)
 {

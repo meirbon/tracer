@@ -1,4 +1,4 @@
-#include "../src/Shared.h"
+#include "Shared.h"
 
 // clang-format off
 #include "random.cl"
@@ -7,4 +7,4 @@
 #include "ray.cl"
 #include "mbvh.cl"
 #include "microfacet.cl"
-// clang-format on
+// clang-format onZ

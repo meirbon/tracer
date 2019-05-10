@@ -26,182 +26,117 @@ void MBVHNode::SetBounds(unsigned int nodeIdx, const AABB &bounds)
 	this->bmaxz[nodeIdx] = bounds.bmax[2];
 }
 
-unsigned int MBVHNode::IntersectDebug(core::Ray &r, const __m128 &dirx4, const __m128 &diry4, const __m128 &dirz4,
-									  const __m128 &orgx4, const __m128 &orgy4, const __m128 &orgz4,
-									  const MBVHNode *pool) const
+unsigned int MBVHNode::IntersectDebug(core::Ray &r, const glm::vec3 &dirInverse, const MBVHNode *pool) const
 {
 	unsigned int depth = 1;
-	union {
-		__m128 tmin4;
-		float tmin[4];
-		uint tmini[4];
-	};
+	MBVHHit hit{};
 
-	union {
-		__m128 tmax4;
-		float tmax[4];
-	};
+	vec4 t1 = (minx - r.origin.x) * dirInverse.x;
+	vec4 t2 = (maxx - r.origin.x) * dirInverse.x;
 
-	const __m128 tx1 = _mm_mul_ps(_mm_sub_ps(bminx4, orgx4), dirx4);
-	const __m128 tx2 = _mm_mul_ps(_mm_sub_ps(bmaxx4, orgx4), dirx4);
+	hit.tmin4 = glm::min(t1, t2);
+	vec4 tmax = glm::max(t1, t2);
 
-	tmax4 = _mm_max_ps(tx1, tx2);
-	tmin4 = _mm_min_ps(tx1, tx2);
+	t1 = (miny - r.origin.y) * dirInverse.y;
+	t2 = (maxy - r.origin.y) * dirInverse.y;
 
-	const __m128 ty1 = _mm_mul_ps(_mm_sub_ps(bminy4, orgy4), diry4);
-	const __m128 ty2 = _mm_mul_ps(_mm_sub_ps(bmaxy4, orgy4), diry4);
+	hit.tmin4 = glm::max(hit.tmin4, glm::min(t1, t2));
+	tmax = glm::min(tmax, glm::max(t1, t2));
 
-	tmax4 = _mm_min_ps(tmax4, _mm_max_ps(ty1, ty2));
-	tmin4 = _mm_max_ps(tmin4, _mm_min_ps(ty1, ty2));
+	t1 = (minz - r.origin.z) * dirInverse.z;
+	t2 = (maxz - r.origin.z) * dirInverse.z;
 
-	const __m128 tz1 = _mm_mul_ps(_mm_sub_ps(bminz4, orgz4), dirz4);
-	const __m128 tz2 = _mm_mul_ps(_mm_sub_ps(bmaxz4, orgz4), dirz4);
+	hit.tmin4 = glm::max(hit.tmin4, glm::min(t1, t2));
+	tmax = glm::min(tmax, glm::max(t1, t2));
 
-	tmax4 = _mm_min_ps(tmax4, _mm_max_ps(tz1, tz2));
-	tmin4 = _mm_max_ps(tmin4, _mm_min_ps(tz1, tz2));
+	hit.result = greaterThan(tmax, vec4(0.0f)) && lessThanEqual(hit.tmin4, tmax) && lessThan(hit.tmin4, vec4(r.t));
 
-	const int result =
-		_mm_movemask_ps(_mm_and_ps(_mm_cmpge_ps(tmax4, _mm_setzero_ps()),
-								   _mm_and_ps(_mm_cmplt_ps(tmin4, tmax4), _mm_cmplt_ps(tmin4, _mm_set1_ps(r.t)))));
-
-	if (result > 0)
+	if (glm::any(hit.result))
 	{
-		// sort based on tmin
-		tmini[0] &= 0xFFFFFFFC;
-		tmini[1] &= 0xFFFFFFFC;
-		tmini[2] &= 0xFFFFFFFC;
-		tmini[3] &= 0xFFFFFFFC;
+		hit.tmini[0] = ((hit.tmini[0] & 0xFFFFFFFC) | 0b00);
+		hit.tmini[1] = ((hit.tmini[1] & 0xFFFFFFFC) | 0b01);
+		hit.tmini[2] = ((hit.tmini[2] & 0xFFFFFFFC) | 0b10);
+		hit.tmini[3] = ((hit.tmini[3] & 0xFFFFFFFC) | 0b11);
 
-		tmini[0] = (tmini[0] | 0b00);
-		tmini[1] = (tmini[1] | 0b01);
-		tmini[2] = (tmini[2] | 0b10);
-		tmini[3] = (tmini[3] | 0b11);
+		if (hit.tmin[0] > hit.tmin[1])
+			std::swap(hit.tmin[0], hit.tmin[1]);
+		if (hit.tmin[2] > hit.tmin[3])
+			std::swap(hit.tmin[2], hit.tmin[3]);
+		if (hit.tmin[0] > hit.tmin[2])
+			std::swap(hit.tmin[0], hit.tmin[2]);
+		if (hit.tmin[1] > hit.tmin[3])
+			std::swap(hit.tmin[1], hit.tmin[3]);
+		if (hit.tmin[2] > hit.tmin[3])
+			std::swap(hit.tmin[2], hit.tmin[3]);
 
-		if (tmin[0] > tmin[1])
-		{
-			std::swap(tmin[0], tmin[1]);
-		}
-		if (tmin[2] > tmin[3])
-		{
-			std::swap(tmin[2], tmin[3]);
-		}
-		if (tmin[0] > tmin[2])
-		{
-			std::swap(tmin[0], tmin[2]);
-		}
-		if (tmin[1] > tmin[3])
-		{
-			std::swap(tmin[1], tmin[3]);
-		}
-		if (tmin[2] > tmin[3])
-		{
-			std::swap(tmin[2], tmin[3]);
-		}
-
-		for (unsigned int t : tmini)
+		for (unsigned int t : hit.tmini)
 		{
 			const uint idx = (t & 0b11);
-			if (!((result >> idx) & 0x1))
-			{ // we should not check this node
+			if (!hit.result[idx])
 				continue;
-			}
 
 			if (this->count[idx] > -1)
-			{ // leaf node
 				depth += 1;
-			}
 			else
-			{
-				depth += pool[this->child[idx]].IntersectDebug(r, dirx4, diry4, dirz4, orgx4, orgy4, orgz4, pool);
-			}
+				depth += pool[this->child[idx]].IntersectDebug(r, dirInverse, pool);
 		}
 	}
 
 	return depth;
 }
 
-static const __m128 zerops = _mm_set1_ps(EPSILON);
-
-void MBVHNode::Intersect(core::Ray &r, const __m128 &dirx4, const __m128 &diry4, const __m128 &dirz4,
-						 const __m128 &orgx4, const __m128 &orgy4, const __m128 &orgz4, const MBVHNode *pool,
+void MBVHNode::Intersect(core::Ray &r, const glm::vec3 &dirInverse, const MBVHNode *pool,
 						 const std::vector<unsigned int> &primitiveIndices,
 						 const std::vector<prims::SceneObject *> &objectList) const
 {
-	union {
-		__m128 tmin4;
-		float tmin[4];
-		uint tmini[4];
-	};
+	MBVHHit hit{};
 
-	union {
-		__m128 tmax4;
-		float tmax[4];
-	};
+	vec4 t1 = (minx - r.origin.x) * dirInverse.x;
+	vec4 t2 = (maxx - r.origin.x) * dirInverse.x;
 
-	const __m128 tx1 = _mm_mul_ps(_mm_sub_ps(bminx4, orgx4), dirx4);
-	const __m128 tx2 = _mm_mul_ps(_mm_sub_ps(bmaxx4, orgx4), dirx4);
+	hit.tmin4 = glm::min(t1, t2);
+	vec4 tmax = glm::max(t1, t2);
 
-	tmax4 = _mm_max_ps(tx1, tx2);
-	tmin4 = _mm_min_ps(tx1, tx2);
+	t1 = (miny - r.origin.y) * dirInverse.y;
+	t2 = (maxy - r.origin.y) * dirInverse.y;
 
-	const __m128 ty1 = _mm_mul_ps(_mm_sub_ps(bminy4, orgy4), diry4);
-	const __m128 ty2 = _mm_mul_ps(_mm_sub_ps(bmaxy4, orgy4), diry4);
+	hit.tmin4 = glm::max(hit.tmin4, glm::min(t1, t2));
+	tmax = glm::min(tmax, glm::max(t1, t2));
 
-	tmax4 = _mm_min_ps(tmax4, _mm_max_ps(ty1, ty2));
-	tmin4 = _mm_max_ps(tmin4, _mm_min_ps(ty1, ty2));
+	t1 = (minz - r.origin.z) * dirInverse.z;
+	t2 = (maxz - r.origin.z) * dirInverse.z;
 
-	const __m128 tz1 = _mm_mul_ps(_mm_sub_ps(bminz4, orgz4), dirz4);
-	const __m128 tz2 = _mm_mul_ps(_mm_sub_ps(bmaxz4, orgz4), dirz4);
+	hit.tmin4 = glm::max(hit.tmin4, glm::min(t1, t2));
+	tmax = glm::min(tmax, glm::max(t1, t2));
 
-	tmax4 = _mm_min_ps(tmax4, _mm_max_ps(tz1, tz2));
-	tmin4 = _mm_max_ps(tmin4, _mm_min_ps(tz1, tz2));
+	hit.result = greaterThan(tmax, vec4(0.0f)) && lessThanEqual(hit.tmin4, tmax) && lessThan(hit.tmin4, vec4(r.t));
 
-	const int result = _mm_movemask_ps(_mm_and_ps(
-		_mm_cmpge_ps(tmax4, zerops), _mm_and_ps(_mm_cmplt_ps(tmin4, tmax4), _mm_cmplt_ps(tmin4, _mm_set1_ps(r.t)))));
-
-	if (result > 0)
+	if (glm::any(hit.result))
 	{
-		// sort based on tmin
-		tmini[0] &= 0xFFFFFFFC;
-		tmini[1] &= 0xFFFFFFFC;
-		tmini[2] &= 0xFFFFFFFC;
-		tmini[3] &= 0xFFFFFFFC;
+		hit.tmini[0] = ((hit.tmini[0] & 0xFFFFFFFC) | 0b00);
+		hit.tmini[1] = ((hit.tmini[1] & 0xFFFFFFFC) | 0b01);
+		hit.tmini[2] = ((hit.tmini[2] & 0xFFFFFFFC) | 0b10);
+		hit.tmini[3] = ((hit.tmini[3] & 0xFFFFFFFC) | 0b11);
 
-		tmini[0] = (tmini[0] | 0b00);
-		tmini[1] = (tmini[1] | 0b01);
-		tmini[2] = (tmini[2] | 0b10);
-		tmini[3] = (tmini[3] | 0b11);
+		if (hit.tmin[0] > hit.tmin[1])
+			std::swap(hit.tmin[0], hit.tmin[1]);
+		if (hit.tmin[2] > hit.tmin[3])
+			std::swap(hit.tmin[2], hit.tmin[3]);
+		if (hit.tmin[0] > hit.tmin[2])
+			std::swap(hit.tmin[0], hit.tmin[2]);
+		if (hit.tmin[1] > hit.tmin[3])
+			std::swap(hit.tmin[1], hit.tmin[3]);
+		if (hit.tmin[2] > hit.tmin[3])
+			std::swap(hit.tmin[2], hit.tmin[3]);
 
-		if (tmin[0] > tmin[1])
-		{
-			std::swap(tmin[0], tmin[1]);
-		}
-		if (tmin[2] > tmin[3])
-		{
-			std::swap(tmin[2], tmin[3]);
-		}
-		if (tmin[0] > tmin[2])
-		{
-			std::swap(tmin[0], tmin[2]);
-		}
-		if (tmin[1] > tmin[3])
-		{
-			std::swap(tmin[1], tmin[3]);
-		}
-		if (tmin[2] > tmin[3])
-		{
-			std::swap(tmin[2], tmin[3]);
-		}
-
-		for (unsigned int t : tmini)
+		for (unsigned int t : hit.tmini)
 		{
 			const uint idx = (t & 0b11);
-			if (!((result >> idx) & 0x1))
-			{ // we should not check this node
+			if (!hit.result[idx])
 				continue;
-			}
-			if (this->count[idx] > -1)
-			{ // leaf node
+
+			if (this->count[idx] > -1) // leaf node
+			{
 				for (int i = 0; i < this->count[idx]; i++)
 				{
 					const uint &primIdx = primitiveIndices[i + this->child[idx]];
@@ -210,8 +145,7 @@ void MBVHNode::Intersect(core::Ray &r, const __m128 &dirx4, const __m128 &diry4,
 			}
 			else
 			{
-				pool[this->child[idx]].Intersect(r, dirx4, diry4, dirz4, orgx4, orgy4, orgz4, pool, primitiveIndices,
-												 objectList);
+				pool[this->child[idx]].Intersect(r, dirInverse, pool, primitiveIndices, objectList);
 			}
 		}
 	}
@@ -547,68 +481,59 @@ void MBVHNode::SortResults(const float *tmin, int &a, int &b, int &c, int &d) co
 	}
 }
 
-MBVHHit MBVHNode::Intersect(core::Ray &r, const __m128 &dirX, const __m128 &dirY, const __m128 &dirZ,
-							const __m128 &orgX, const __m128 &orgY, const __m128 &orgZ) const
+MBVHHit MBVHNode::Intersect(core::Ray &r, const glm::vec3 &dirInverse) const
 {
-	MBVHHit mHit;
+	MBVHHit hit{};
 
-	const __m128 tx1 = _mm_mul_ps(_mm_sub_ps(bminx4, orgX), dirX);
-	const __m128 tx2 = _mm_mul_ps(_mm_sub_ps(bmaxx4, orgX), dirX);
+	vec4 t1 = (minx - r.origin.x) * dirInverse.x;
+	vec4 t2 = (maxx - r.origin.x) * dirInverse.x;
 
-	__m128 tmax4 = _mm_max_ps(tx1, tx2);
-	mHit.tmin4 = _mm_min_ps(tx1, tx2);
+	hit.tmin4 = glm::min(t1, t2);
+	vec4 tmax = glm::max(t1, t2);
 
-	const __m128 ty1 = _mm_mul_ps(_mm_sub_ps(bminy4, orgY), dirY);
-	const __m128 ty2 = _mm_mul_ps(_mm_sub_ps(bmaxy4, orgY), dirY);
+	t1 = (miny - r.origin.y) * dirInverse.y;
+	t2 = (maxy - r.origin.y) * dirInverse.y;
 
-	mHit.tmin4 = _mm_max_ps(mHit.tmin4, _mm_min_ps(ty1, ty2));
-	tmax4 = _mm_min_ps(tmax4, _mm_max_ps(ty1, ty2));
+	hit.tmin4 = glm::max(hit.tmin4, glm::min(t1, t2));
+	tmax = glm::min(tmax, glm::max(t1, t2));
 
-	const __m128 tz1 = _mm_mul_ps(_mm_sub_ps(bminz4, orgZ), dirZ);
-	const __m128 tz2 = _mm_mul_ps(_mm_sub_ps(bmaxz4, orgZ), dirZ);
+	t1 = (minz - r.origin.z) * dirInverse.z;
+	t2 = (maxz - r.origin.z) * dirInverse.z;
 
-	tmax4 = _mm_min_ps(tmax4, _mm_max_ps(tz1, tz2));
-	mHit.tmin4 = _mm_max_ps(mHit.tmin4, _mm_min_ps(tz1, tz2));
+	hit.tmin4 = glm::max(hit.tmin4, glm::min(t1, t2));
+	tmax = glm::min(tmax, glm::max(t1, t2));
 
-	mHit.result = _mm_movemask_ps(
-		_mm_and_ps(_mm_cmpge_ps(tmax4, zerops),
-				   _mm_and_ps(_mm_cmple_ps(mHit.tmin4, tmax4), _mm_cmplt_ps(mHit.tmin4, _mm_set1_ps(r.t)))));
+	hit.tmini[0] = ((hit.tmini[0] & 0xFFFFFFFC) | 0b00);
+	hit.tmini[1] = ((hit.tmini[1] & 0xFFFFFFFC) | 0b01);
+	hit.tmini[2] = ((hit.tmini[2] & 0xFFFFFFFC) | 0b10);
+	hit.tmini[3] = ((hit.tmini[3] & 0xFFFFFFFC) | 0b11);
 
-	if (mHit.result > 0)
+	hit.result = greaterThan(tmax, vec4(0.0f)) && lessThanEqual(hit.tmin4, tmax) && lessThan(hit.tmin4, vec4(r.t));
+
+	if (glm::any(hit.result) > 0)
 	{
-		// sort based on tmin
-		mHit.tmini[0] &= 0xFFFFFFFC;
-		mHit.tmini[1] &= 0xFFFFFFFC;
-		mHit.tmini[2] &= 0xFFFFFFFC;
-		mHit.tmini[3] &= 0xFFFFFFFC;
-
-		mHit.tmini[0] = (mHit.tmini[0] | 0b00);
-		mHit.tmini[1] = (mHit.tmini[1] | 0b01);
-		mHit.tmini[2] = (mHit.tmini[2] | 0b10);
-		mHit.tmini[3] = (mHit.tmini[3] | 0b11);
-
-		if (mHit.tmin[0] > mHit.tmin[1])
+		if (hit.tmin[0] > hit.tmin[1])
 		{
-			std::swap(mHit.tmin[0], mHit.tmin[1]);
+			std::swap(hit.tmin[0], hit.tmin[1]);
 		}
-		if (mHit.tmin[2] > mHit.tmin[3])
+		if (hit.tmin[2] > hit.tmin[3])
 		{
-			std::swap(mHit.tmin[2], mHit.tmin[3]);
+			std::swap(hit.tmin[2], hit.tmin[3]);
 		}
-		if (mHit.tmin[0] > mHit.tmin[2])
+		if (hit.tmin[0] > hit.tmin[2])
 		{
-			std::swap(mHit.tmin[0], mHit.tmin[2]);
+			std::swap(hit.tmin[0], hit.tmin[2]);
 		}
-		if (mHit.tmin[1] > mHit.tmin[3])
+		if (hit.tmin[1] > hit.tmin[3])
 		{
-			std::swap(mHit.tmin[1], mHit.tmin[3]);
+			std::swap(hit.tmin[1], hit.tmin[3]);
 		}
-		if (mHit.tmin[2] > mHit.tmin[3])
+		if (hit.tmin[2] > hit.tmin[3])
 		{
-			std::swap(mHit.tmin[2], mHit.tmin[3]);
+			std::swap(hit.tmin[2], hit.tmin[3]);
 		}
 	}
 
-	return mHit;
+	return hit;
 }
 }; // namespace bvh

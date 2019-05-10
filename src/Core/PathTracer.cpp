@@ -107,11 +107,11 @@ void PathTracer::Render(Surface *output)
 {
 	const float EFactor = 1.0f / float(SAMPLE_COUNT);
 
-	m_Height = output->GetHeight();
 	m_Width = output->GetWidth();
+	m_Height = output->GetHeight();
 
-	const int vTiles = m_Height / TILE_HEIGHT;
-	const int hTiles = m_Width / TILE_WIDTH;
+	const int vTiles = std::ceil(float(m_Height) / float(TILE_HEIGHT));
+	const int hTiles = std::ceil(float(m_Width) / float(TILE_WIDTH));
 
 	unsigned int idx = 0;
 
@@ -120,14 +120,17 @@ void PathTracer::Render(Surface *output)
 		for (int tile_x = 0; tile_x < hTiles; tile_x++)
 		{
 			RandomGenerator *rngPointer = m_Rngs.at(idx);
-			idx++;
 			tResults.push_back(tPool->push([tile_x, tile_y, this, output, rngPointer, EFactor](int) -> void {
 				for (int y = 0; y < TILE_HEIGHT; y++)
 				{
 					const int pixel_y = y + tile_y * TILE_HEIGHT;
+					if (pixel_y >= m_Height)
+						continue;
 					for (int x = 0; x < TILE_WIDTH; x++)
 					{
 						const int pixel_x = x + tile_x * TILE_WIDTH;
+						if (pixel_x >= m_Width)
+							continue;
 
 						uint depth = 0;
 						Ray r = m_Camera->generateRandomRay(float(pixel_x), float(pixel_y), *rngPointer);
@@ -781,13 +784,11 @@ void PathTracer::Resize(gl::Texture *newOutput)
 	m_Energy = new float[m_Width * m_Height];
 	Reset();
 
-	m_Tiles = (m_Width / TILE_WIDTH) * (m_Height / TILE_HEIGHT);
+	m_Tiles = int(std::ceil(float(m_Width) / TILE_WIDTH) * std::ceil(float(m_Height) / TILE_HEIGHT));
 
 	m_Rngs.clear();
 	for (int i = 0; i < m_Tiles; i++)
-	{
-		m_Rngs.push_back(new MersenneTwister());
-	}
+		m_Rngs.push_back(new Xor128());
 }
 
 glm::vec3 PathTracer::SampleReferenceMicrofacet(Ray &r, RandomGenerator &rng) const

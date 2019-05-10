@@ -41,7 +41,7 @@ struct Camera
 
 	void updateFOV(float offset) noexcept;
 
-	void calcForward() noexcept;
+	void updateVectors() noexcept;
 
 	void setWidth(int width);
 
@@ -49,7 +49,7 @@ struct Camera
 
 	void setDimensions(glm::ivec2 dims);
 
-	cl::Buffer* getGPUBuffer();
+	cl::Buffer<CLCamera> *getGPUBuffer();
 	void updateGPUBuffer();
 	std::future<void> updateGPUBufferAsync();
 
@@ -75,6 +75,6 @@ struct Camera
 	bool isDirty = false;
 
   private:
-	cl::Buffer *gpuBuffer = nullptr;
+	cl::Buffer<CLCamera> *gpuBuffer = nullptr;
 };
 } // namespace core

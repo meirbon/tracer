@@ -83,7 +83,7 @@ kernel void shade_mis(global Ray *rays,				   // 0
                 const float weight = brdfPDF + lightPDF;
                 const float w1 = brdfPDF / weight;
                 const float w2 = lightPDF / weight;
-                color /= (w1 * brdfPDF + w2 * lightPDF) * NdotL * float(lightCount);
+                color /= (w1 * brdfPDF + w2 * lightPDF) * NdotL * (float)(lightCount);
             }
         }
 
@@ -106,7 +106,7 @@ kernel void shade_mis(global Ray *rays,				   // 0
         ray.direction = r_cos_reflect(normal, &seed);
         ray.throughput *= color;
 
-        const int light = int(RandomFloat(&seed) * (lightCount - 1));
+        const int light = (int)(RandomFloat(&seed) * (lightCount - 1));
         const int lightIdx = lightIndices[light];
         const int3 lvIdx = indices[lightIdx];
         const float3 lightPos = t_getRandomPointOnSurface(vertices[lvIdx.x], vertices[lvIdx.y], vertices[lvIdx.z],
@@ -129,7 +129,7 @@ kernel void shade_mis(global Ray *rays,				   // 0
             const float area = t_getArea(vertices[lvIdx.x], vertices[lvIdx.y], vertices[lvIdx.z]);
             const float solidAngle = LNdotL * area / squaredDistance;
             const float3 emission = materials[matIndices[lightIdx]].emission;
-            const float3 shadowCol = color / PI * emission * NdotL * float(lightCount);
+            const float3 shadowCol = color / PI * emission * NdotL * (float)(lightCount);
 
             const float bPDF = NdotL / PI;
             const float lightPDF = 1.0f / solidAngle;

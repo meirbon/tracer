@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <iostream>
 #include <tuple>
+#include <vector>
 
 #ifdef __APPLE__
 #define CL_SILENCE_DEPRECATION
@@ -20,6 +21,15 @@
 #include <CL/cl_gl_ext.h>
 #endif
 
+namespace cl
+{
+template<typename T> class Buffer;
+class TextureBuffer;
+}
+
+#include "OpenCL.h"
+#include <GL/Texture.h>
+
 namespace gl
 {
 class Texture;
@@ -29,41 +39,120 @@ namespace cl
 {
 enum BufferType
 {
-  	DEFAULT = 0,
+	DEFAULT = 0,
 	TEXTURE = 1,
 	TARGET = 2
 };
 
-class Buffer
+template <typename T> class Buffer
 {
   public:
 	// constructor / destructor
-	explicit Buffer(unsigned int size, void *ptr = nullptr);
-	explicit Buffer(gl::Texture *texture, BufferType t = TARGET);
+	Buffer<T>(unsigned int count)
+	{
+		m_Size = count * sizeof(T);
+		m_DeviceBuffer = clCreateBuffer(Kernel::getContext(), CL_MEM_READ_WRITE, m_Size, 0, 0);
+		m_HostBuffer.resize(count);
+	}
 
-	~Buffer();
+	Buffer<T>(const std::vector<T> &data)
+	{
+		m_Size = data.size() * sizeof(T);
+		m_DeviceBuffer = clCreateBuffer(Kernel::getContext(), CL_MEM_READ_WRITE, m_Size, 0, 0);
+		m_HostBuffer.resize(data.size());
+		memcpy(m_HostBuffer.data(), data.data(), data.size() * sizeof(T));
+	}
 
-	cl_mem *GetDevicePtr() { return &deviceBuffer; }
+	Buffer<T>(const T *data)
+	{
+		m_Size = 1 * sizeof(T);
+		m_DeviceBuffer = clCreateBuffer(Kernel::getContext(), CL_MEM_READ_WRITE, m_Size, 0, 0);
+		m_HostBuffer.resize(1);
+		m_HostBuffer[0] = *data;
+	}
 
-	template <class T> inline T *GetHostPtr() { return (T *)hostBuffer; }
+	~Buffer() { clReleaseMemObject(m_DeviceBuffer); }
 
-	void CopyToDevice(bool blocking = true);
+	cl_mem *getDevicePtr() { return &m_DeviceBuffer; }
 
-	void CopyFromDevice(bool blocking = true);
+	std::vector<T> &getHostPtr() { return m_HostBuffer; }
 
-	void CopyTo(Buffer *buffer);
+	cl_int copyToDevice(bool blocking = true)
+	{
+		return clEnqueueWriteBuffer(Kernel::getQueue(), m_DeviceBuffer, blocking, 0, m_Size, m_HostBuffer.data(), 0, 0,
+									0);
+	}
 
-	void Clear();
+	cl_int copyFromDevice(bool blocking = true)
+	{
+		clEnqueueReadBuffer(Kernel::getQueue(), m_DeviceBuffer, blocking, 0, m_Size, m_HostBuffer.data(), 0, 0, 0);
+	}
 
-	void Read(void *dst);
+	cl_int copyTo(Buffer *buffer)
+	{
+		clEnqueueCopyBuffer(Kernel::getQueue(), m_DeviceBuffer, buffer->m_DeviceBuffer, 0, 0, m_Size, 0, 0, 0);
+	}
 
-	void Write(void *dst);
+	cl_int clear()
+	{
+		unsigned int value = 0;
+		return clEnqueueFillBuffer(Kernel::getQueue(), m_DeviceBuffer, &value, 4, 0, m_Size, 0, nullptr, nullptr);
+	}
 
+	std::vector<T> Read()
+	{
+		auto *data = (unsigned char *)clEnqueueMapBuffer(Kernel::getQueue(), m_PinnedBuffer, CL_TRUE, CL_MAP_READ, 0,
+														 m_Size, 0, nullptr, nullptr, nullptr);
+		clEnqueueReadBuffer(Kernel::getQueue(), m_DeviceBuffer, CL_TRUE, 0, m_Size, data, 0, nullptr, nullptr);
+		std::vector<T> d(m_Size);
+		memcpy(d.data(), data, m_Size);
+		return d;
+	}
+
+	cl_int write(T *data)
+	{
+		auto *mappedData = (T *)clEnqueueMapBuffer(Kernel::getQueue(), m_PinnedBuffer, CL_TRUE, CL_MAP_WRITE, 0, m_Size,
+												   0, nullptr, nullptr, nullptr);
+
+		memcpy(mappedData, data, m_Size);
+		return clEnqueueWriteBuffer(Kernel::getQueue(), m_DeviceBuffer, CL_FALSE, 0, m_Size, data, 0, nullptr, nullptr);
+	}
+
+  private:
 	// data members
-	cl_mem deviceBuffer, pinnedBuffer;
-	unsigned int *hostBuffer;
-	unsigned int m_Type, m_Size, m_TextureID;
-	unsigned int sizeInQuads;
-	bool ownData;
+	cl_mem m_DeviceBuffer, m_PinnedBuffer;
+	std::vector<T> m_HostBuffer;
+	BufferType m_Type;
+	size_t m_Size;
+};
+
+class TextureBuffer
+{
+  public:
+	enum Type
+	{
+		Texture,
+		Target
+	};
+
+	TextureBuffer(gl::Texture *texture, cl::BufferType t);
+
+	~TextureBuffer() { clReleaseMemObject(m_DeviceBuffer); }
+
+	cl_mem *getDevicePtr() { return &m_DeviceBuffer; }
+
+	cl_int clear();
+
+	std::vector<float> read();
+
+	cl_int write(float *data);
+
+  private:
+	// data members
+	cl_mem m_DeviceBuffer, m_PinnedBuffer;
+	unsigned int m_TextureId;
+	size_t m_Size;
+
+  private:
 };
 } // namespace cl

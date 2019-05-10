@@ -25,8 +25,6 @@
 
 #include "Utils/Messages.h"
 
-// #define USE_CPU_DEVICE
-
 namespace cl
 {
 inline bool CheckCL(cl_int result, const char *file, int line)
@@ -190,8 +188,6 @@ inline bool CheckCL(cl_int result, const char *file, int line)
 
 #define CHECKCL(x) CheckCL(x, __FILE__, __LINE__)
 
-class Buffer;
-
 class Kernel
 {
   public:
@@ -199,41 +195,36 @@ class Kernel
 	Kernel(const char *file, const char *entryPoint, std::tuple<size_t, size_t, size_t> workSize);
 	~Kernel();
 
-	// get / set
-	cl_kernel &GetKernel() { return m_Kernel; }
+	cl_kernel &getKernel() { return m_Kernel; }
 
-	static cl_command_queue &GetQueue() { return m_Queue; }
+	static cl_command_queue &getQueue() { return m_Queue; }
 
-	static cl_context &GetContext() { return m_Context; }
+	static cl_context &getContext() { return m_Context; }
 
-	static cl_device_id &GetDevice() { return m_Device; }
+	static cl_device_id &getDevice() { return m_Device; }
 
 	// methods
-	cl_int Run();
+	cl_int run();
 
-	cl_int Run(cl_mem *buffers, int count = 1);
+	cl_int run(cl_mem *buffers, int count = 1);
 
-	cl_int Run(Buffer *buffer);
+	cl_int run(cl::TextureBuffer *buffer);
 
-	cl_int Run(size_t count);
+	cl_int run(size_t count);
 
-	static cl_int SyncQueue();
+	static cl_int syncQueue();
 
-	cl_int SetArgument(int idx, cl_mem *buffer);
+	cl_int setArgument(int idx, cl_mem *buffer) { return clSetKernelArg(m_Kernel, idx, sizeof(cl_mem), buffer); }
 
-	cl_int SetArgument(int idx, Buffer *buffer);
+	template <typename Buffer> cl_int setArgument(int idx, Buffer *buffer)
+	{
+		return clSetKernelArg(m_Kernel, idx, sizeof(cl_mem), buffer->getDevicePtr());
+	}
 
-	cl_int SetArgument(int idx, float value);
-
-	cl_int SetArgument(int idx, int value);
-
-	cl_int SetArgument(int idx, unsigned int value);
-
-	cl_int SetArgument(int idx, glm::vec2 value);
-
-	cl_int SetArgument(int idx, glm::vec3 value);
-
-	cl_int SetArgument(int idx, glm::vec4 value);
+	template <typename T> cl_int setArgument(int idx, const T &data)
+	{
+		return clSetKernelArg(m_Kernel, idx, sizeof(T), (void *)&data);
+	}
 
 	inline void SetWorkSize(size_t x, size_t y, size_t z)
 	{

@@ -18,7 +18,7 @@ class RayTracer : public Renderer
 	void Render(Surface *output) override;
 
 	RayTracer(prims::WorldScene *Scene, glm::vec3 backgroundColor, glm::vec3 ambientColor, uint maxRecursionDepth,
-			  Camera *camera, int width, int height);
+			  Camera *camera, int width, int height, Surface *skybox = nullptr);
 	glm::vec3 Trace(Ray &r, uint &depth, float refractionIndex, RandomGenerator &rng);
 	glm::vec3 Shade(const Ray &r, uint &depth, float refractionIndex, RandomGenerator &rng);
 	glm::vec3 GetDiffuseSpecularColor(const Ray &r, const Material &mat, const glm::vec3 &hitPoint,
@@ -38,13 +38,13 @@ class RayTracer : public Renderer
 	prims::WorldScene *m_Scene;
 	ctpl::ThreadPool *tPool = nullptr;
 	Camera *m_Camera;
+	Surface *m_SkyBox = nullptr;
 
-	int m_Tiles, m_Width, m_Height, m_LightCount;
+	int m_Width, m_Height, m_LightCount;
 
-	std::vector<std::future<void>> *tResults = nullptr;
+	std::vector<std::future<void>> tResults{};
 	std::vector<RandomGenerator *> *m_Rngs = nullptr;
-
-	glm::vec3 *m_Pixels;
+	std::vector<glm::vec3> m_Pixels;
 
 	int m_Samples = 0;
 };

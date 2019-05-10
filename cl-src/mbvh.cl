@@ -80,31 +80,31 @@ inline MBVHHit iMBVHNode(MBVHNode node, int *hit_idx, float *rayt, float3 origin
 	hit.result4[2] &= (hit.tmin.z < *rayt);
 	hit.result4[3] &= (hit.tmin.w < *rayt);
 
-	if (hit.tmin[0] > hit.tmin[1])
+	if (hit.tmin.x > hit.tmin.y)
 	{
 		hit.tmini4[0] = hit.tmini4[0] ^ hit.tmini4[1];
 		hit.tmini4[1] = hit.tmini4[0] ^ hit.tmini4[1];
 		hit.tmini4[0] = hit.tmini4[0] ^ hit.tmini4[1];
 	}
-	if (hit.tmin[2] > hit.tmin[3])
+	if (hit.tmin.z > hit.tmin.w)
 	{
 		hit.tmini4[2] = hit.tmini4[2] ^ hit.tmini4[3];
 		hit.tmini4[3] = hit.tmini4[2] ^ hit.tmini4[3];
 		hit.tmini4[2] = hit.tmini4[2] ^ hit.tmini4[3];
 	}
-	if (hit.tmin[0] > hit.tmin[2])
+	if (hit.tmin.x > hit.tmin.z)
 	{
 		hit.tmini4[0] = hit.tmini4[0] ^ hit.tmini4[2];
 		hit.tmini4[2] = hit.tmini4[0] ^ hit.tmini4[2];
 		hit.tmini4[0] = hit.tmini4[0] ^ hit.tmini4[2];
 	}
-	if (hit.tmin[1] > hit.tmin[3])
+	if (hit.tmin.y > hit.tmin.w)
 	{
 		hit.tmini4[1] = hit.tmini4[1] ^ hit.tmini4[3];
 		hit.tmini4[3] = hit.tmini4[1] ^ hit.tmini4[3];
 		hit.tmini4[1] = hit.tmini4[1] ^ hit.tmini4[3];
 	}
-	if (hit.tmin[2] > hit.tmin[3])
+	if (hit.tmin.z > hit.tmin.w)
 	{
 		hit.tmini4[2] = hit.tmini4[2] ^ hit.tmini4[3];
 		hit.tmini4[3] = hit.tmini4[2] ^ hit.tmini4[3];
@@ -153,7 +153,7 @@ void iMBVHTree(global MBVHNode *nodes, global int3 *indices, global float3 *vert
 				for (int i = 3; i >= 0; i--)
 				{ // reversed order, we want to check best nodes first
 					const int idx = (hit.tmini4[i] & 0b11);
-					if (hit.result[idx] == 1)
+					if (hit.result4[idx] == 1)
 					{
 						stackptr++;
 						todo[stackptr].leftFirst = nodes[mTodo.leftFirst].child[idx];

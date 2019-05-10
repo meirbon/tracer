@@ -20,6 +20,6 @@ inline uint getSeed(uint threadID, uint frameID) { return (frameID * threadID * 
 
 inline float RandomFloat(uint *seed) { return RandomInt(seed) * 2.3283064365387e-10f; }
 
-inline uint RandomIntMax(uint *seed, int max) { return int(RandomFloat(seed) * (max + 0.99999f)); }
+inline uint RandomIntMax(uint *seed, int max) { return (uint)(RandomFloat(seed) * (max + 0.99999f)); }
 
 #endif

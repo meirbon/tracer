@@ -61,8 +61,15 @@ class Surface
 	// member data access
 	Pixel *GetBuffer() { return m_Buffer; }
 	glm::vec4 *GetTextureBuffer();
+	const std::vector<glm::vec4> &getTextureVector() const { return m_TexBuffer; }
 
 	void SetBuffer(Pixel *a_Buffer);
+
+	void resize(int width, int height)
+	{
+		m_Width = width;
+		m_Height = height;
+	}
 
 	const int &GetWidth() const { return m_Width; }
 

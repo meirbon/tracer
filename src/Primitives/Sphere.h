@@ -15,8 +15,6 @@ class Sphere : public SceneObject
 	void Intersect(core::Ray &r) const override;
 	~Sphere() = default;
 
-	// pos 12
-	// mat 16
 	float radiusSquared{}; // 20
 
 	bvh::AABB GetBounds() const override;

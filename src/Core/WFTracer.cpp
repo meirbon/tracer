@@ -9,25 +9,6 @@ using namespace core;
 namespace core
 {
 
-struct TextureInfo
-{
-	union {
-		glm::ivec4 data{};
-		struct
-		{
-			int width, height, offset, dummy;
-		};
-	};
-
-	TextureInfo(int width, int height, int offset)
-	{
-		this->width = width;
-		this->height = height;
-		this->offset = offset;
-		this->dummy = 0;
-	}
-};
-
 WFTracer::WFTracer(TriangleList *tList, gl::Texture *t1, gl::Texture *t2, Camera *camera, Surface *skybox,
 				   ctpl::ThreadPool *pool)
 	: m_Camera(camera), m_Frame(0), m_TList(tList)
@@ -60,7 +41,7 @@ WFTracer::WFTracer(TriangleList *tList, gl::Texture *t1, gl::Texture *t2, Camera
 	setupTextures();
 	setupSkybox(skybox);
 	setArguments();
-	colorBuffer->Clear();
+	colorBuffer->clear();
 }
 
 WFTracer::~WFTracer()
@@ -100,35 +81,35 @@ void WFTracer::Render(Surface *output)
 {
 	m_Frame++;
 
-	wGenerateRayKernel->SetArgument(7, m_Frame);
-	wShadeRefKernel->SetArgument(21, m_Frame);
-	wShadeNeeKernel->SetArgument(21, m_Frame);
-	wShadeMisKernel->SetArgument(21, m_Frame);
+	wGenerateRayKernel->setArgument(7, m_Frame);
+	wShadeRefKernel->setArgument(21, m_Frame);
+	wShadeNeeKernel->setArgument(21, m_Frame);
+	wShadeMisKernel->setArgument(21, m_Frame);
 
-	wGenerateRayKernel->Run(outputBuffer);
-	wIntersectKernel->Run();
+	wGenerateRayKernel->run(outputBuffer);
+	wIntersectKernel->run();
 
 	auto result = m_Camera->updateGPUBufferAsync();
 
 	switch (m_Mode)
 	{
 	case (1):
-		wShadeNeeKernel->Run();
-		Kernel::SyncQueue();
-		wConnectKernel->Run();
+		wShadeNeeKernel->run();
+		Kernel::syncQueue();
+		wConnectKernel->run();
 		break;
 	case (2):
-		wShadeMisKernel->Run();
-		Kernel::SyncQueue();
-		wConnectKernel->Run();
+		wShadeMisKernel->run();
+		Kernel::syncQueue();
+		wConnectKernel->run();
 		break;
 	case (0):
 	default:
-		wShadeRefKernel->Run();
+		wShadeRefKernel->run();
 		break;
 	}
 
-	wDrawKernel->Run(outputBuffer);
+	wDrawKernel->run(outputBuffer);
 	m_Samples++;
 	result.get();
 }
@@ -157,10 +138,10 @@ void WFTracer::Resize(gl::Texture *newOutput)
 	wConnectKernel->SetWorkSize(workSizeX, workSizeY, 1);
 	wDrawKernel->SetWorkSize(workSizeX, workSizeY, 1);
 
-	outputBuffer = new Buffer(newOutput, BufferType::TARGET);
-	raysBuffer = new Buffer(m_Width * m_Height * 96);
-	sRaysBuffer = new Buffer(m_Width * m_Height * 64);
-	colorBuffer = new Buffer(m_Width * m_Height * sizeof(glm::vec4));
+	outputBuffer = new TextureBuffer(newOutput, BufferType::TARGET);
+	raysBuffer = new Buffer<float>(m_Width * m_Height * 96 / 4);
+	sRaysBuffer = new Buffer<float>(m_Width * m_Height * 96 / 4);
+	colorBuffer = new Buffer<glm::vec4>(m_Width * m_Height);
 
 	setArguments();
 	Reset();
@@ -171,45 +152,41 @@ void WFTracer::setupCamera() { m_Camera->updateGPUBuffer(); }
 void WFTracer::setupObjects()
 {
 	// copy initial BVH tree to GPU
-	primitiveIndicesBuffer = new Buffer(static_cast<unsigned int>(m_BVHTree->m_PrimitiveCount) * sizeof(unsigned int),
-										m_BVHTree->m_PrimitiveIndices.data());
-	primitiveIndicesBuffer->CopyToDevice();
-	MBVHNodeBuffer = new Buffer((m_MBVHTree->m_FinalPtr + 1) * sizeof(bvh::MBVHNode), m_MBVHTree->m_Tree.data());
-	MBVHNodeBuffer->CopyToDevice();
+	primitiveIndicesBuffer = new Buffer<unsigned int>(m_BVHTree->m_PrimitiveIndices);
+	primitiveIndicesBuffer->copyToDevice();
 
-	verticesBuffer = new Buffer(m_TList->m_Vertices.size() * sizeof(vec4), m_TList->m_Vertices.data());
-	normalBuffer = new Buffer(m_TList->m_Normals.size() * sizeof(vec4), m_TList->m_Normals.data());
-	texCoordBuffer = new Buffer(m_TList->m_TexCoords.size() * sizeof(vec2), m_TList->m_TexCoords.data());
-	cnBuffer = new Buffer(m_TList->m_CenterNormals.size() * sizeof(vec4), m_TList->m_CenterNormals.data());
-	indicesBuffer = new Buffer(m_TList->m_Indices.size() * sizeof(int) * 4, m_TList->m_Indices.data());
+	MBVHNodeBuffer = new Buffer<bvh::MBVHNode>(m_MBVHTree->m_Tree);
+	MBVHNodeBuffer->copyToDevice();
+
+	verticesBuffer = new Buffer(m_TList->m_Vertices);
+	normalBuffer = new Buffer(m_TList->m_Normals);
+	texCoordBuffer = new Buffer(m_TList->m_TexCoords);
+	cnBuffer = new Buffer(m_TList->m_CenterNormals);
+	indicesBuffer = new Buffer(m_TList->m_Indices);
 
 	if (m_TList->m_LightIndices.empty())
-		lightIndicesBuffer = new Buffer(sizeof(int) * 4);
+		lightIndicesBuffer = new Buffer<unsigned int>(1);
 	else
-		lightIndicesBuffer =
-			new Buffer(m_TList->m_LightIndices.size() * sizeof(int) * 4, m_TList->m_LightIndices.data());
+		lightIndicesBuffer = new Buffer(m_TList->m_LightIndices);
 
-	matIndicesBuffer = new Buffer(m_TList->m_MaterialIdxs.size() * sizeof(int), m_TList->m_MaterialIdxs.data());
+	matIndicesBuffer = new Buffer(m_TList->m_MaterialIdxs);
 
-	verticesBuffer->CopyToDevice();
-	normalBuffer->CopyToDevice();
-	texCoordBuffer->CopyToDevice();
-	cnBuffer->CopyToDevice();
-	indicesBuffer->CopyToDevice();
-	lightIndicesBuffer->CopyToDevice();
-	matIndicesBuffer->CopyToDevice();
+	verticesBuffer->copyToDevice();
+	normalBuffer->copyToDevice();
+	texCoordBuffer->copyToDevice();
+	cnBuffer->copyToDevice();
+	indicesBuffer->copyToDevice();
+	lightIndicesBuffer->copyToDevice();
+	matIndicesBuffer->copyToDevice();
 }
 
 void WFTracer::setupMaterials()
 {
-	materialBuffer = new Buffer(MaterialManager::GetInstance()->GetMaterials().size() * sizeof(Material),
-								MaterialManager::GetInstance()->GetMaterials().data());
-	materialBuffer->CopyToDevice();
+	materialBuffer = new Buffer(MaterialManager::GetInstance()->GetMaterials());
+	materialBuffer->copyToDevice();
 
-	microfacetBuffer = new Buffer(static_cast<unsigned int>(MaterialManager::GetInstance()->GetMicrofacets().size()) *
-									  sizeof(Microfacet),
-								  (void *)MaterialManager::GetInstance()->GetMicrofacets().data());
-	microfacetBuffer->CopyToDevice();
+	microfacetBuffer = new Buffer(MaterialManager::GetInstance()->GetMicrofacets());
+	microfacetBuffer->copyToDevice();
 }
 
 void WFTracer::setupTextures()
@@ -230,17 +207,17 @@ void WFTracer::setupTextures()
 			textureInfos.emplace_back(tex->GetWidth(), tex->GetHeight(), offset);
 		}
 
-		textureBuffer = new Buffer(textureColors.size() * sizeof(vec4), textureColors.data());
-		textureBuffer->CopyToDevice();
-		textureInfoBuffer = new Buffer(textureInfos.size() * sizeof(TextureInfo), textureInfos.data());
-		textureInfoBuffer->CopyToDevice();
+		textureBuffer = new Buffer(textureColors);
+		textureBuffer->copyToDevice();
+		textureInfoBuffer = new Buffer(textureInfos);
+		textureInfoBuffer->copyToDevice();
 	}
 	else
 	{
-		textureBuffer = new Buffer(1 * sizeof(vec4));
-		textureBuffer->CopyToDevice();
-		textureInfoBuffer = new Buffer(sizeof(TextureInfo));
-		textureInfoBuffer->CopyToDevice();
+		textureBuffer = new Buffer<glm::vec4>(1);
+		textureBuffer->copyToDevice();
+		textureInfoBuffer = new Buffer<TextureInfo>(1);
+		textureInfoBuffer->copyToDevice();
 	}
 }
 
@@ -250,120 +227,121 @@ void WFTracer::setupSkybox(Surface *skybox)
 	if (m_HasSkybox)
 	{
 		auto skyInfo = TextureInfo(skybox->GetWidth(), skybox->GetHeight(), 0);
-		skyDomeBuffer =
-			new Buffer(skybox->GetWidth() * skybox->GetHeight() * sizeof(glm::vec4), skybox->GetTextureBuffer());
-		skyDomeInfoBuffer = new Buffer(sizeof(TextureInfo), &skyInfo);
-		skyDomeBuffer->CopyToDevice();
-		skyDomeInfoBuffer->CopyToDevice();
+		skyDomeBuffer = new Buffer(skybox->getTextureVector());
+		skyDomeInfoBuffer = new Buffer(&skyInfo);
+		skyDomeBuffer->copyToDevice();
+		skyDomeInfoBuffer->copyToDevice();
 	}
 	else
 	{
-		skyDomeBuffer = new Buffer(4);
-		skyDomeInfoBuffer = new Buffer(4);
+		auto dummy = glm::vec4(1.0f);
+		skyDomeBuffer = new Buffer(&dummy);
+		auto dummy1 = TextureInfo(0, 0, 0);
+		skyDomeInfoBuffer = new Buffer(&dummy1);
 	}
 }
 
 void WFTracer::setArguments()
 {
-	wGenerateRayKernel->SetArgument(1, colorBuffer);
-	wGenerateRayKernel->SetArgument(0, outputBuffer);
-	wGenerateRayKernel->SetArgument(2, raysBuffer);
-	wGenerateRayKernel->SetArgument(3, sRaysBuffer);
-	wGenerateRayKernel->SetArgument(4, m_Camera->getGPUBuffer());
-	wGenerateRayKernel->SetArgument(5, m_Width);
-	wGenerateRayKernel->SetArgument(6, m_Height);
-	wGenerateRayKernel->SetArgument(7, m_Frame);
+	wGenerateRayKernel->setArgument(1, colorBuffer);
+	wGenerateRayKernel->setArgument(0, outputBuffer);
+	wGenerateRayKernel->setArgument(2, raysBuffer);
+	wGenerateRayKernel->setArgument(3, sRaysBuffer);
+	wGenerateRayKernel->setArgument(4, m_Camera->getGPUBuffer());
+	wGenerateRayKernel->setArgument(5, m_Width);
+	wGenerateRayKernel->setArgument(6, m_Height);
+	wGenerateRayKernel->setArgument(7, m_Frame);
 
-	wIntersectKernel->SetArgument(0, raysBuffer);
-	wIntersectKernel->SetArgument(1, indicesBuffer);
-	wIntersectKernel->SetArgument(2, verticesBuffer);
-	wIntersectKernel->SetArgument(3, MBVHNodeBuffer);
-	wIntersectKernel->SetArgument(4, primitiveIndicesBuffer);
-	wIntersectKernel->SetArgument(5, m_Width);
-	wIntersectKernel->SetArgument(6, m_Height);
+	wIntersectKernel->setArgument(0, raysBuffer);
+	wIntersectKernel->setArgument(1, indicesBuffer);
+	wIntersectKernel->setArgument(2, verticesBuffer);
+	wIntersectKernel->setArgument(3, MBVHNodeBuffer);
+	wIntersectKernel->setArgument(4, primitiveIndicesBuffer);
+	wIntersectKernel->setArgument(5, m_Width);
+	wIntersectKernel->setArgument(6, m_Height);
 
-	wShadeRefKernel->SetArgument(0, raysBuffer);
-	wShadeRefKernel->SetArgument(1, sRaysBuffer);
-	wShadeRefKernel->SetArgument(2, materialBuffer);
-	wShadeRefKernel->SetArgument(3, indicesBuffer);
-	wShadeRefKernel->SetArgument(4, lightIndicesBuffer);
-	wShadeRefKernel->SetArgument(5, verticesBuffer);
-	wShadeRefKernel->SetArgument(6, cnBuffer);
-	wShadeRefKernel->SetArgument(7, normalBuffer);
-	wShadeRefKernel->SetArgument(8, texCoordBuffer);
-	wShadeRefKernel->SetArgument(9, primitiveIndicesBuffer);
-	wShadeRefKernel->SetArgument(10, colorBuffer);
-	wShadeRefKernel->SetArgument(11, textureBuffer);
-	wShadeRefKernel->SetArgument(12, textureInfoBuffer);
-	wShadeRefKernel->SetArgument(13, skyDomeBuffer);
-	wShadeRefKernel->SetArgument(14, skyDomeInfoBuffer);
-	wShadeRefKernel->SetArgument(15, microfacetBuffer);
-	wShadeRefKernel->SetArgument(16, matIndicesBuffer);
-	wShadeRefKernel->SetArgument(17, m_HasSkybox ? 1 : 0);
-	wShadeRefKernel->SetArgument(18, int(m_TList->m_LightIndices.size()));
-	wShadeRefKernel->SetArgument(19, m_Width);
-	wShadeRefKernel->SetArgument(20, m_Height);
-	wShadeRefKernel->SetArgument(21, m_Frame);
+	wShadeRefKernel->setArgument(0, raysBuffer);
+	wShadeRefKernel->setArgument(1, sRaysBuffer);
+	wShadeRefKernel->setArgument(2, materialBuffer);
+	wShadeRefKernel->setArgument(3, indicesBuffer);
+	wShadeRefKernel->setArgument(4, lightIndicesBuffer);
+	wShadeRefKernel->setArgument(5, verticesBuffer);
+	wShadeRefKernel->setArgument(6, cnBuffer);
+	wShadeRefKernel->setArgument(7, normalBuffer);
+	wShadeRefKernel->setArgument(8, texCoordBuffer);
+	wShadeRefKernel->setArgument(9, primitiveIndicesBuffer);
+	wShadeRefKernel->setArgument(10, colorBuffer);
+	wShadeRefKernel->setArgument(11, textureBuffer);
+	wShadeRefKernel->setArgument(12, textureInfoBuffer);
+	wShadeRefKernel->setArgument(13, skyDomeBuffer);
+	wShadeRefKernel->setArgument(14, skyDomeInfoBuffer);
+	wShadeRefKernel->setArgument(15, microfacetBuffer);
+	wShadeRefKernel->setArgument(16, matIndicesBuffer);
+	wShadeRefKernel->setArgument(17, m_HasSkybox ? 1 : 0);
+	wShadeRefKernel->setArgument(18, int(m_TList->m_LightIndices.size()));
+	wShadeRefKernel->setArgument(19, m_Width);
+	wShadeRefKernel->setArgument(20, m_Height);
+	wShadeRefKernel->setArgument(21, m_Frame);
 
-	wShadeNeeKernel->SetArgument(0, raysBuffer);
-	wShadeNeeKernel->SetArgument(1, sRaysBuffer);
-	wShadeNeeKernel->SetArgument(2, materialBuffer);
-	wShadeNeeKernel->SetArgument(3, indicesBuffer);
-	wShadeNeeKernel->SetArgument(4, lightIndicesBuffer);
-	wShadeNeeKernel->SetArgument(5, verticesBuffer);
-	wShadeNeeKernel->SetArgument(6, cnBuffer);
-	wShadeNeeKernel->SetArgument(7, normalBuffer);
-	wShadeNeeKernel->SetArgument(8, texCoordBuffer);
-	wShadeNeeKernel->SetArgument(9, primitiveIndicesBuffer);
-	wShadeNeeKernel->SetArgument(10, colorBuffer);
-	wShadeNeeKernel->SetArgument(11, textureBuffer);
-	wShadeNeeKernel->SetArgument(12, textureInfoBuffer);
-	wShadeNeeKernel->SetArgument(13, skyDomeBuffer);
-	wShadeNeeKernel->SetArgument(14, skyDomeInfoBuffer);
-	wShadeNeeKernel->SetArgument(15, microfacetBuffer);
-	wShadeNeeKernel->SetArgument(16, matIndicesBuffer);
-	wShadeNeeKernel->SetArgument(17, m_HasSkybox ? 1 : 0);
-	wShadeNeeKernel->SetArgument(18, int(m_TList->m_LightIndices.size()));
-	wShadeNeeKernel->SetArgument(19, m_Width);
-	wShadeNeeKernel->SetArgument(20, m_Height);
-	wShadeNeeKernel->SetArgument(21, m_Frame);
+	wShadeNeeKernel->setArgument(0, raysBuffer);
+	wShadeNeeKernel->setArgument(1, sRaysBuffer);
+	wShadeNeeKernel->setArgument(2, materialBuffer);
+	wShadeNeeKernel->setArgument(3, indicesBuffer);
+	wShadeNeeKernel->setArgument(4, lightIndicesBuffer);
+	wShadeNeeKernel->setArgument(5, verticesBuffer);
+	wShadeNeeKernel->setArgument(6, cnBuffer);
+	wShadeNeeKernel->setArgument(7, normalBuffer);
+	wShadeNeeKernel->setArgument(8, texCoordBuffer);
+	wShadeNeeKernel->setArgument(9, primitiveIndicesBuffer);
+	wShadeNeeKernel->setArgument(10, colorBuffer);
+	wShadeNeeKernel->setArgument(11, textureBuffer);
+	wShadeNeeKernel->setArgument(12, textureInfoBuffer);
+	wShadeNeeKernel->setArgument(13, skyDomeBuffer);
+	wShadeNeeKernel->setArgument(14, skyDomeInfoBuffer);
+	wShadeNeeKernel->setArgument(15, microfacetBuffer);
+	wShadeNeeKernel->setArgument(16, matIndicesBuffer);
+	wShadeNeeKernel->setArgument(17, m_HasSkybox ? 1 : 0);
+	wShadeNeeKernel->setArgument(18, int(m_TList->m_LightIndices.size()));
+	wShadeNeeKernel->setArgument(19, m_Width);
+	wShadeNeeKernel->setArgument(20, m_Height);
+	wShadeNeeKernel->setArgument(21, m_Frame);
 
-	wShadeMisKernel->SetArgument(0, raysBuffer);
-	wShadeMisKernel->SetArgument(1, sRaysBuffer);
-	wShadeMisKernel->SetArgument(2, materialBuffer);
-	wShadeMisKernel->SetArgument(3, indicesBuffer);
-	wShadeMisKernel->SetArgument(4, lightIndicesBuffer);
-	wShadeMisKernel->SetArgument(5, verticesBuffer);
-	wShadeMisKernel->SetArgument(6, cnBuffer);
-	wShadeMisKernel->SetArgument(7, normalBuffer);
-	wShadeMisKernel->SetArgument(8, texCoordBuffer);
-	wShadeMisKernel->SetArgument(9, primitiveIndicesBuffer);
-	wShadeMisKernel->SetArgument(10, colorBuffer);
-	wShadeMisKernel->SetArgument(11, textureBuffer);
-	wShadeMisKernel->SetArgument(12, textureInfoBuffer);
-	wShadeMisKernel->SetArgument(13, skyDomeBuffer);
-	wShadeMisKernel->SetArgument(14, skyDomeInfoBuffer);
-	wShadeMisKernel->SetArgument(15, microfacetBuffer);
-	wShadeMisKernel->SetArgument(16, matIndicesBuffer);
-	wShadeMisKernel->SetArgument(17, m_HasSkybox ? 1 : 0);
-	wShadeMisKernel->SetArgument(18, int(m_TList->m_LightIndices.size()));
-	wShadeMisKernel->SetArgument(19, m_Width);
-	wShadeMisKernel->SetArgument(20, m_Height);
-	wShadeMisKernel->SetArgument(21, m_Frame);
+	wShadeMisKernel->setArgument(0, raysBuffer);
+	wShadeMisKernel->setArgument(1, sRaysBuffer);
+	wShadeMisKernel->setArgument(2, materialBuffer);
+	wShadeMisKernel->setArgument(3, indicesBuffer);
+	wShadeMisKernel->setArgument(4, lightIndicesBuffer);
+	wShadeMisKernel->setArgument(5, verticesBuffer);
+	wShadeMisKernel->setArgument(6, cnBuffer);
+	wShadeMisKernel->setArgument(7, normalBuffer);
+	wShadeMisKernel->setArgument(8, texCoordBuffer);
+	wShadeMisKernel->setArgument(9, primitiveIndicesBuffer);
+	wShadeMisKernel->setArgument(10, colorBuffer);
+	wShadeMisKernel->setArgument(11, textureBuffer);
+	wShadeMisKernel->setArgument(12, textureInfoBuffer);
+	wShadeMisKernel->setArgument(13, skyDomeBuffer);
+	wShadeMisKernel->setArgument(14, skyDomeInfoBuffer);
+	wShadeMisKernel->setArgument(15, microfacetBuffer);
+	wShadeMisKernel->setArgument(16, matIndicesBuffer);
+	wShadeMisKernel->setArgument(17, m_HasSkybox ? 1 : 0);
+	wShadeMisKernel->setArgument(18, int(m_TList->m_LightIndices.size()));
+	wShadeMisKernel->setArgument(19, m_Width);
+	wShadeMisKernel->setArgument(20, m_Height);
+	wShadeMisKernel->setArgument(21, m_Frame);
 
-	wConnectKernel->SetArgument(0, sRaysBuffer);
-	wConnectKernel->SetArgument(1, indicesBuffer);
-	wConnectKernel->SetArgument(2, verticesBuffer);
-	wConnectKernel->SetArgument(3, primitiveIndicesBuffer);
-	wConnectKernel->SetArgument(4, colorBuffer);
-	wConnectKernel->SetArgument(5, MBVHNodeBuffer);
-	wConnectKernel->SetArgument(6, m_Width);
-	wConnectKernel->SetArgument(7, m_Height);
+	wConnectKernel->setArgument(0, sRaysBuffer);
+	wConnectKernel->setArgument(1, indicesBuffer);
+	wConnectKernel->setArgument(2, verticesBuffer);
+	wConnectKernel->setArgument(3, primitiveIndicesBuffer);
+	wConnectKernel->setArgument(4, colorBuffer);
+	wConnectKernel->setArgument(5, MBVHNodeBuffer);
+	wConnectKernel->setArgument(6, m_Width);
+	wConnectKernel->setArgument(7, m_Height);
 
-	wDrawKernel->SetArgument(0, outputBuffer);
-	wDrawKernel->SetArgument(1, colorBuffer);
-	wDrawKernel->SetArgument(2, m_Width);
-	wDrawKernel->SetArgument(3, m_Height);
+	wDrawKernel->setArgument(0, outputBuffer);
+	wDrawKernel->setArgument(1, colorBuffer);
+	wDrawKernel->setArgument(2, m_Width);
+	wDrawKernel->setArgument(3, m_Height);
 }
 
 } // namespace core

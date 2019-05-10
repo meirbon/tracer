@@ -109,7 +109,8 @@ void StaticBVHTree::TraceRay(core::Ray &r) const
 		m_ObjectList->TraceRay(r);
 	}
 
-	r.normal = r.obj->GetNormal(r.GetHitpoint());
+	if (r.obj)
+		r.normal = r.obj->GetNormal(r.GetHitpoint());
 }
 
 bool StaticBVHTree::TraceShadowRay(core::Ray &r, float tMax) const

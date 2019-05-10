@@ -59,9 +59,7 @@ TopLevelBVH::~TopLevelBVH()
 {
 	delete m_StaticBVHTree;
 	for (auto *obj : *gameObjectList)
-	{
 		delete obj;
-	}
 
 	delete gameObjectList;
 }

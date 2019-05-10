@@ -10,17 +10,20 @@ bool Surface::fontInitialized = false;
 Surface::Surface(int width, int height, Pixel *buffer, int pitch)
 	: m_Buffer(buffer), m_Width(width), m_Height(height), m_Pitch(pitch)
 {
+	m_TexBuffer = {glm::vec4(1.0f)};
 	m_Flags = 0;
 }
 
 Surface::Surface(int width, int height) : m_Width(width), m_Height(height), m_Pitch(width)
 {
+	m_TexBuffer = {glm::vec4(1.0f)};
 	m_Buffer = new Pixel[width * height];
 	m_Flags = OWNER;
 }
 
 Surface::Surface(const char *file) : m_Buffer(nullptr), m_Width(0), m_Height(0)
 {
+	m_TexBuffer = {glm::vec4(1.0f)};
 	FILE *f = fopen(file, "rb");
 	if (!f)
 	{
@@ -32,7 +35,7 @@ Surface::Surface(const char *file) : m_Buffer(nullptr), m_Width(0), m_Height(0)
 	else
 		fclose(f);
 	LoadImage(file);
-}
+} // namespace core
 
 void Surface::LoadImage(const char *file)
 {
@@ -65,7 +68,7 @@ void Surface::LoadImage(const char *file)
 			const auto green = (uint)(quad.rgbGreen);
 			const auto blue = (uint)(quad.rgbBlue);
 			m_Buffer[x + y * m_Width] = (red << 0) | (green << 8) | (blue << 16);
-			m_TexBuffer.emplace_back(float(blue) / 255.99f, float(green) / 255.99f, float(red) / 255.99f, 1.0f);
+			m_TexBuffer.emplace_back(float(red) / 255.99f, float(green) / 255.99f, float(blue) / 255.99f, 1.0f);
 		}
 	}
 

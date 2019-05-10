@@ -48,7 +48,8 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 	{
 		//		else
 		//			Dragon(m_ObjectList);
-		//			Micromaterials(m_ObjectList);
+		// Micromaterials(m_ObjectList);
+		CornellBox(m_ObjectList);
 	}
 	else
 	{
@@ -60,11 +61,12 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 		}
 		else
 		{
-			Micromaterials(triangleList);
+			CornellBox(triangleList);
+			// Micromaterials(triangleList);
 			// const auto lightMat = Material::light(vec3(10.0f));
 			// const unsigned int lightIdx = MaterialManager::GetInstance()->AddMaterial(lightMat);
 			// prims::TrianglePlane::create(vec3(100.0f, 100.0f, 10.0f), vec3(-100.0f, 100.0f, 10.0f),
-										//  vec3(100.0f, 100.0f, -10.0f), lightIdx, triangleList);
+			//  vec3(100.0f, 100.0f, -10.0f), lightIdx, triangleList);
 			// triangleList->loadModel("models/sponza/sponza.obj", 0.1f, mat4(1.0f), -1, false);
 		}
 		// else
@@ -245,16 +247,13 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 	case (GPU):
 	{
 		m_Renderer = new WFTracer(triangleList, m_OutputTexture[0], m_OutputTexture[1], &m_Camera, m_Skybox, m_TPool);
-		// m_Renderer =
-		// 	new core::GpuTracer(m_GpuList, m_OutputTexture[0], m_OutputTexture[1], &m_Camera, m_Skybox, m_TPool);
-		// m_Renderer->SetMode(core::Mode::ReferenceMicrofacet);
 		break;
 	}
 	case (CPU_RAYTRACER):
 	{
 		m_Scene = new bvh::TopLevelBVH(m_ObjectList, gameObjects, bvh::BVHType::SAH_BINNING, m_TPool);
 		std::cout << "Primitive count: " << m_Scene->GetPrimitiveCount() << std::endl;
-		m_Renderer = new core::RayTracer(m_Scene, vec3(0.0f), vec3(0.01f), 16, &m_Camera, m_Width, m_Height);
+		m_Renderer = new core::RayTracer(m_Scene, vec3(0.0f), vec3(0.01f), 16, &m_Camera, m_Width, m_Height, m_Skybox);
 		m_BVHRenderer = new core::BVHRenderer(m_Scene, &m_Camera, m_Width, m_Height);
 		break;
 	}
@@ -264,7 +263,7 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 		m_Scene = new bvh::TopLevelBVH(m_ObjectList, gameObjects, bvh::BVHType::SAH_BINNING, m_TPool);
 		std::cout << "Primitive count: " << m_Scene->GetPrimitiveCount() << std::endl;
 		m_Renderer = new core::PathTracer(m_Scene, m_Width, m_Height, &m_Camera, m_Skybox);
-		m_Renderer->SetMode(core::Mode::ReferenceMicrofacet);
+		m_Renderer->SetMode(core::Mode::NEE_MIS);
 		m_BVHRenderer = new core::BVHRenderer(m_Scene, &m_Camera, m_Width, m_Height);
 		break;
 	}
@@ -468,55 +467,48 @@ void Application::Draw(float deltaTime)
 	ImGui::End();
 
 	if (m_Type == CPU || m_Type == CPU_RAYTRACER)
+	{
 		m_OutputTexture[m_tIndex]->flushData();
+		m_tIndex = 1 - m_tIndex;
+		m_Screen->SetBuffer(m_OutputTexture[m_tIndex]->mapToPixelBuffer());
+	}
 
 	m_DrawShader->Bind();
 	m_DrawShader->SetInputTexture(0, "glm::vec3", m_OutputTexture[m_tIndex]);
 	m_DrawShader->setUniformMatrix4fv("view", glm::mat4(1.f));
 	gl::DrawQuad();
 	m_DrawShader->Unbind();
-
-	if (m_Type == CPU || m_Type == CPU_RAYTRACER)
-	{
-		m_tIndex = 1 - m_tIndex;
-		m_Screen->SetBuffer(m_OutputTexture[m_tIndex]->mapToPixelBuffer());
-	}
 }
 
 void Application::Resize(int newWidth, int newHeight)
 {
+	glViewport(0, 0, newWidth, newHeight);
 	glFinish();
 	m_Camera.setDimensions({newWidth, newHeight});
 	m_Width = newWidth;
 	m_Height = newHeight;
-	m_tIndex = 0;
 
 	delete m_OutputTexture[0];
 	delete m_OutputTexture[1];
+	delete m_Screen;
+
+	m_Screen = new core::Surface(m_Width, m_Height);
 
 	if (m_Type == CPU || m_Type == CPU_RAYTRACER)
 	{
 		m_OutputTexture[0] = new gl::Texture(m_Width, m_Height, gl::Texture::SURFACE);
 		m_OutputTexture[1] = new gl::Texture(m_Width, m_Height, gl::Texture::SURFACE);
-		m_Screen->SetPitch(m_Width);
-		m_Screen->SetBuffer(m_OutputTexture[m_tIndex]->mapToPixelBuffer());
 
-		if (m_Renderer)
-		{
-			delete m_Renderer;
-			m_Renderer = new core::PathTracer(m_Scene, m_Width, m_Height, &m_Camera, m_Skybox);
-			m_Renderer->SetMode(core::Mode::ReferenceMicrofacet);
-			m_Renderer->Resize(m_OutputTexture[m_tIndex]);
-		}
+		m_tIndex = 1 - m_tIndex;
+		m_Screen->resize(newWidth, newHeight);
+		m_Screen->SetPitch(m_Width);
 	}
 	else
 	{
 		m_OutputTexture[0] = new gl::Texture(m_Width, m_Height, gl::Texture::FLOAT);
 		m_OutputTexture[1] = new gl::Texture(m_Width, m_Height, gl::Texture::FLOAT);
-		if (!m_Screen)
-			m_Screen = new core::Surface(m_Width, m_Height);
-
-		if (m_Renderer)
-			m_Renderer->Resize(m_OutputTexture[0]);
 	}
+
+	if (m_Renderer)
+		m_Renderer->Resize(m_OutputTexture[0]);
 }

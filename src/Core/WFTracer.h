@@ -18,6 +18,25 @@ namespace core
 {
 class WFTracer : public Renderer
 {
+	struct TextureInfo
+	{
+		TextureInfo() = default;
+		TextureInfo(int width, int height, int offset)
+		{
+			this->width = width;
+			this->height = height;
+			this->offset = offset;
+			this->dummy = 0;
+		}
+		union {
+			glm::ivec4 data{};
+			struct
+			{
+				int width, height, offset, dummy;
+			};
+		};
+	};
+
   public:
 	WFTracer() = default;
 	WFTracer(TriangleList *tList, gl::Texture *t1, gl::Texture *t2, Camera *camera, Surface *skybox = nullptr,
@@ -29,7 +48,7 @@ class WFTracer : public Renderer
 
 	inline void SetMode(int mode) override
 	{
-		cl::Kernel::SyncQueue();
+		cl::Kernel::syncQueue();
 		m_Mode = mode;
 	}
 
@@ -47,7 +66,7 @@ class WFTracer : public Renderer
 
 	inline void SwitchSkybox() override
 	{
-		cl::Kernel::SyncQueue();
+		cl::Kernel::syncQueue();
 		this->m_SkyboxEnabled = (this->m_HasSkybox && !this->m_SkyboxEnabled);
 	}
 
@@ -70,25 +89,25 @@ class WFTracer : public Renderer
 	bvh::MBVHTree *m_MBVHTree = nullptr;
 	gl::Texture *outputTexture[2] = {nullptr, nullptr};
 
-	cl::Buffer *outputBuffer = nullptr;
-	cl::Buffer *primitiveIndicesBuffer = nullptr;
-	cl::Buffer *MBVHNodeBuffer = nullptr;
-	cl::Buffer *colorBuffer = nullptr;
-	cl::Buffer *textureBuffer = nullptr;
-	cl::Buffer *textureInfoBuffer = nullptr;
-	cl::Buffer *skyDomeBuffer = nullptr;
-	cl::Buffer *skyDomeInfoBuffer = nullptr;
-	cl::Buffer *raysBuffer = nullptr;
-	cl::Buffer *sRaysBuffer = nullptr;
-	cl::Buffer *materialBuffer = nullptr;
-	cl::Buffer *microfacetBuffer = nullptr;
-	cl::Buffer *matIndicesBuffer = nullptr;
-	cl::Buffer *verticesBuffer = nullptr;
-	cl::Buffer *normalBuffer = nullptr;
-	cl::Buffer *texCoordBuffer = nullptr;
-	cl::Buffer *cnBuffer = nullptr;
-	cl::Buffer *indicesBuffer = nullptr;
-	cl::Buffer *lightIndicesBuffer = nullptr;
+	cl::TextureBuffer *outputBuffer = nullptr;
+	cl::Buffer<unsigned int> *primitiveIndicesBuffer = nullptr;
+	cl::Buffer<bvh::MBVHNode> *MBVHNodeBuffer = nullptr;
+	cl::Buffer<glm::vec4> *colorBuffer = nullptr;
+	cl::Buffer<glm::vec4> *textureBuffer = nullptr;
+	cl::Buffer<TextureInfo> *textureInfoBuffer = nullptr;
+	cl::Buffer<glm::vec4> *skyDomeBuffer = nullptr;
+	cl::Buffer<TextureInfo> *skyDomeInfoBuffer = nullptr;
+	cl::Buffer<float> *raysBuffer = nullptr;
+	cl::Buffer<float> *sRaysBuffer = nullptr;
+	cl::Buffer<Material> *materialBuffer = nullptr;
+	cl::Buffer<Microfacet> *microfacetBuffer = nullptr;
+	cl::Buffer<unsigned int> *matIndicesBuffer = nullptr;
+	cl::Buffer<glm::vec4> *verticesBuffer = nullptr;
+	cl::Buffer<glm::vec4> *normalBuffer = nullptr;
+	cl::Buffer<glm::vec2> *texCoordBuffer = nullptr;
+	cl::Buffer<glm::vec4> *cnBuffer = nullptr;
+	cl::Buffer<glm::uvec4> *indicesBuffer = nullptr;
+	cl::Buffer<unsigned int> *lightIndicesBuffer = nullptr;
 	cl::Kernel *wGenerateRayKernel = nullptr;
 	cl::Kernel *wIntersectKernel = nullptr;
 	cl::Kernel *wShadeRefKernel = nullptr;

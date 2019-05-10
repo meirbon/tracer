@@ -44,8 +44,8 @@ void Plane::Intersect(core::Ray &r) const
 
 	const vec3 p = r.GetHitpoint();
 
-	if (p.x < dimMin.x || p.z < dimMin.z || p.x > dimMax.x || p.z > dimMax.z || p.y < dimMin.y || p.y > dimMax.y)
-		return;
+	//if (p.x < dimMin.x || p.z < dimMin.z || p.x > dimMax.x || p.z > dimMax.z || p.y < dimMin.y || p.y > dimMax.y)
+	//	return;
 
 	if (r.t > t)
 	{

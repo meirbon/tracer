@@ -8,19 +8,19 @@
 #include "Shared.h"
 #include "StaticBVHTree.h"
 
-namespace bvh
-{
-class MBVHTree;
-
 struct MBVHHit
 {
 	union {
-		__m128 tmin4;
+		vec4 tmin4;
 		float tmin[4];
 		int tmini[4];
 	};
-	int result;
+	bvec4 result;
 };
+
+namespace bvh
+{
+class MBVHTree;
 
 class MBVHNode
 {
@@ -32,28 +32,34 @@ class MBVHNode
 	union {
 		__m128 bminx4;
 		float bminx[4]{};
+		glm::vec4 minx;
 	};
 	union {
 		__m128 bmaxx4;
 		float bmaxx[4]{};
+		glm::vec4 maxx;
 	};
 
 	union {
 		__m128 bminy4;
 		float bminy[4]{};
+		glm::vec4 miny;
 	};
 	union {
 		__m128 bmaxy4;
 		float bmaxy[4]{};
+		glm::vec4 maxy;
 	};
 
 	union {
 		__m128 bminz4;
 		float bminz[4]{};
+		glm::vec4 minz;
 	};
 	union {
 		__m128 bmaxz4;
 		float bmaxz[4]{};
+		glm::vec4 maxz;
 	};
 
 	int child[4];
@@ -63,17 +69,13 @@ class MBVHNode
 
 	void SetBounds(unsigned int nodeIdx, const bvh::AABB &bounds);
 
-	unsigned int IntersectDebug(core::Ray &r, const __m128 &dirX, const __m128 &dirY, const __m128 &dirZ,
-								const __m128 &orgX, const __m128 &orgY, const __m128 &orgZ,
-								const bvh::MBVHNode *pool) const;
+	unsigned int IntersectDebug(core::Ray &r, const glm::vec3 &dirInverse, const bvh::MBVHNode *pool) const;
 
-	void Intersect(core::Ray &r, const __m128 &dirX, const __m128 &dirY, const __m128 &dirZ, const __m128 &orgX,
-				   const __m128 &orgY, const __m128 &orgZ, const bvh::MBVHNode *pool,
+	void Intersect(core::Ray &r, const glm::vec3 &dirInverse, const MBVHNode *pool,
 				   const std::vector<unsigned int> &primitiveIndices,
 				   const std::vector<prims::SceneObject *> &objectList) const;
 
-	MBVHHit Intersect(core::Ray &r, const __m128 &dirX, const __m128 &dirY, const __m128 &dirZ, const __m128 &orgX,
-					  const __m128 &orgY, const __m128 &orgZ) const;
+	MBVHHit Intersect(core::Ray &r, const glm::vec3 &dirInverse) const;
 
 	void MergeNodes(const bvh::BVHNode &node, const bvh::BVHNode *bvhPool, bvh::MBVHTree *bvhTree);
 

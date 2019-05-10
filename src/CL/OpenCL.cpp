@@ -371,9 +371,9 @@ bool Kernel::InitCL()
 	}
 
 	// print device name
-	char device_string[1024];
-	clGetDeviceInfo(devices[deviceUsed], CL_DEVICE_NAME, 1024, &device_string, nullptr);
-	std::cout << "Device #" << deviceUsed << ", " << device_string << std::endl;
+	std::vector<char> device_string(1024);
+	clGetDeviceInfo(devices[deviceUsed], CL_DEVICE_NAME, device_string.size(), device_string.data(), nullptr);
+	std::cout << "Device #" << deviceUsed << ", " << device_string.data() << std::endl;
 
 	size_t p_size;
 	size_t l_size;
@@ -393,44 +393,13 @@ bool Kernel::InitCL()
 	return result;
 }
 
-cl_int Kernel::SetArgument(int idx, cl_mem *buffer) { return clSetKernelArg(m_Kernel, idx, sizeof(cl_mem), buffer); }
-
-cl_int Kernel::SetArgument(int idx, Buffer *buffer)
-{
-	return clSetKernelArg(m_Kernel, idx, sizeof(cl_mem), buffer->GetDevicePtr());
-}
-
-cl_int Kernel::SetArgument(int idx, int value) { return clSetKernelArg(m_Kernel, idx, sizeof(int), &value); }
-
-cl_int Kernel::SetArgument(int idx, unsigned int value)
-{
-	return clSetKernelArg(m_Kernel, idx, sizeof(unsigned int), &value);
-}
-
-cl_int Kernel::SetArgument(int idx, float value) { return clSetKernelArg(m_Kernel, idx, sizeof(float), &value); }
-
-cl_int Kernel::SetArgument(int idx, glm::vec2 value)
-{
-	return clSetKernelArg(m_Kernel, idx, sizeof(vec2), glm::value_ptr(value));
-}
-
-cl_int Kernel::SetArgument(int idx, glm::vec3 value)
-{
-	return clSetKernelArg(m_Kernel, idx, sizeof(vec3), glm::value_ptr(value));
-}
-
-cl_int Kernel::SetArgument(int idx, glm::vec4 value)
-{
-	return clSetKernelArg(m_Kernel, idx, sizeof(vec4), glm::value_ptr(value));
-}
-
-cl_int Kernel::Run()
+cl_int Kernel::run()
 {
 	glFinish();
 	return clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, 0, m_WorkSize, 0, 0, 0, 0);
 }
 
-cl_int Kernel::Run(cl_mem *buffers, int count)
+cl_int Kernel::run(cl_mem *buffers, int count)
 {
 	cl_int err = CL_SUCCESS;
 
@@ -448,15 +417,15 @@ cl_int Kernel::Run(cl_mem *buffers, int count)
 	return err;
 }
 
-cl_int Kernel::Run(Buffer *buffer)
+cl_int Kernel::run(TextureBuffer *buffer)
 {
 	cl_int err = CL_SUCCESS;
 	glFinish();
 	if (Kernel::canDoInterop)
 	{
-		err = clEnqueueAcquireGLObjects(m_Queue, 1, buffer->GetDevicePtr(), 0, 0, 0);
+		err = clEnqueueAcquireGLObjects(m_Queue, 1, buffer->getDevicePtr(), 0, 0, 0);
 		err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0);
-		err = clEnqueueReleaseGLObjects(m_Queue, 1, buffer->GetDevicePtr(), 0, 0, 0);
+		err = clEnqueueReleaseGLObjects(m_Queue, 1, buffer->getDevicePtr(), 0, 0, 0);
 	}
 	else
 	{
@@ -466,12 +435,12 @@ cl_int Kernel::Run(Buffer *buffer)
 	return err;
 }
 
-cl_int Kernel::Run(size_t count)
+cl_int Kernel::run(size_t count)
 {
 	cl_int err = CL_SUCCESS;
 	err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 1, 0, &count, 0, 0, 0, 0);
 	return err;
 }
 
-cl_int Kernel::SyncQueue() { return clFinish(m_Queue); }
+cl_int Kernel::syncQueue() { return clFinish(m_Queue); }
 } // namespace cl

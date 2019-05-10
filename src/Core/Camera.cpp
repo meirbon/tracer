@@ -13,7 +13,7 @@ Camera::Camera(int width, int height, float fov, float mouseSens, vec3 pos)
 	forward = cross(up, right);
 
 	rotationSpeed = mouseSens;
-	calcForward();
+	updateVectors();
 	position = pos;
 	aspectRatio = planeWidth / planeHeight;
 	fovDistance = tanf(glm::radians(fov * 0.5f));
@@ -24,12 +24,8 @@ Camera::~Camera() { delete gpuBuffer; }
 
 Ray Camera::generateRay(float x, float y) const
 {
-	const vec3 &w = forward;
-	const vec3 u = normalize(cross(w, up));
-	const vec3 v = normalize(cross(u, w));
-
-	const vec3 horizontal = u * fovDistance * aspectRatio;
-	const vec3 vertical = v * fovDistance;
+	const vec3 horizontal = right * fovDistance * aspectRatio;
+	const vec3 vertical = up * fovDistance;
 
 	const float PixelX = x * m_InvWidth;
 	const float PixelY = y * m_InvHeight;
@@ -37,7 +33,7 @@ Ray Camera::generateRay(float x, float y) const
 	const float ScreenX = 2.f * PixelX - 1.f;
 	const float ScreenY = 1.f - 2.f * PixelY;
 
-	const vec3 pointAtDistanceOneFromPlane = w + horizontal * ScreenX + vertical * ScreenY;
+	const vec3 pointAtDistanceOneFromPlane = forward + horizontal * ScreenX + vertical * ScreenY;
 
 	return {position, normalize(pointAtDistanceOneFromPlane)};
 }
@@ -55,7 +51,7 @@ void Camera::processMouse(glm::vec2 xy) noexcept
 	if (any(notEqual(xy, vec2(0, 0))))
 	{
 		rotate(xy * rotationSpeed);
-		calcForward();
+		updateVectors();
 		isDirty = true;
 	}
 }
@@ -69,8 +65,8 @@ void Camera::move(glm::vec3 offset) noexcept
 void Camera::rotate(glm::vec2 offset) noexcept
 {
 	yaw += offset.x;
-	pitch = clamp(pitch + offset.y , -radians(85.f), radians(85.f));
-	calcForward();
+	pitch = clamp(pitch + offset.y, -radians(85.f), radians(85.f));
+	updateVectors();
 	isDirty = true;
 }
 
@@ -82,10 +78,14 @@ void Camera::updateFOV(float offset) noexcept
 	isDirty = true;
 }
 
-void Camera::calcForward() noexcept
+void Camera::updateVectors() noexcept
 {
-	this->forward = {sinf(yaw) * cosf(pitch), sinf(pitch), -1.0f * cosf(yaw) * cosf(pitch)};
-	this->right = cross(normalize(this->forward), this->up);
+	forward = {sinf(yaw) * cosf(pitch), sinf(pitch), -1.0f * cosf(yaw) * cosf(pitch)};
+	vec3 temp = vec3(0, 1, 0);
+	if (forward.y >= 0.99f)
+		temp = vec3(0, 0, 1);
+	right = normalize(cross(normalize(forward), temp));
+	up = -normalize(cross(forward, right));
 	isDirty = true;
 }
 
@@ -122,9 +122,9 @@ void Camera::updateGPUBuffer()
 	if (isDirty)
 	{
 		if (gpuBuffer == nullptr)
-			gpuBuffer = new Buffer(sizeof(CLCamera));
+			gpuBuffer = new Buffer<CLCamera>(1);
 
-		auto *pointer = gpuBuffer->GetHostPtr<CLCamera>();
+		auto *pointer = &gpuBuffer->getHostPtr()[0];
 
 		const glm::vec3 u = normalize(cross(forward, vec3(0, 1, 0)));
 		const glm::vec3 v = normalize(cross(u, forward));
@@ -137,7 +137,7 @@ void Camera::updateGPUBuffer()
 		pointer->invWidth = m_InvWidth;
 		pointer->invHeight = m_InvHeight;
 		pointer->aspectRatio = aspectRatio;
-		gpuBuffer->CopyToDevice(false);
+		gpuBuffer->copyToDevice(false);
 	}
 
 	isDirty = false;
@@ -147,6 +147,7 @@ std::future<void> Camera::updateGPUBufferAsync()
 {
 	return std::async([this]() -> void { updateGPUBuffer(); });
 }
-cl::Buffer *Camera::getGPUBuffer() { return gpuBuffer; }
+
+cl::Buffer<Camera::CLCamera> *Camera::getGPUBuffer() { return gpuBuffer; }
 
 } // namespace core

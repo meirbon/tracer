@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 	std::cout << "Application started." << std::endl;
 
 	bool oFullScreen = false;
-	RendererType rendererType = CPU;
+	RendererType rendererType = GPU;
 	std::string file;
 
 	for (int i = 1; i < argc; i++)
@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 		else if (str == "--gpu" || str == "-g")
 			rendererType = GPU;
 		else if (str == "--cpu" || str == "-c")
-			rendererType = CPU;
+			rendererType = CPU_RAYTRACER;
 		else
 			file = str;
 	}

@@ -23,11 +23,11 @@ void Sphere::Intersect(core::Ray &r) const
 	const float c = rPos2 - radiusSquared;
 
 	const float discriminant = (b * b) - (4 * a * c);
-	if (discriminant < 0.f)
+	if (discriminant < 0)
 		return;
 
 	const float div2a = 1.f / (2.f * a);
-	const float sqrtDis = discriminant > 0.f ? sqrtf(discriminant) : 0.f;
+	const float sqrtDis = max(sqrtf(discriminant), 0.0f);
 
 	const float t1 = ((-b) + sqrtDis) * div2a;
 	const float t2 = ((-b) - sqrtDis) * div2a;

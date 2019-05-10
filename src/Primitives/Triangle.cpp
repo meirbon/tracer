@@ -134,13 +134,13 @@ vec3 Triangle::GetRandomPointOnSurface(const vec3 &direction, vec3 &lNormal, Ran
 	float r1 = rng.Rand(1.f);
 	float r2 = rng.Rand(1.f);
 
-	if (r1 + r2 > 1)
+	if (r1 + r2 > 1.0f)
 	{
-		r1 = 1 - r1;
-		r2 = 1 - r2;
+		r1 = 1.0f - r1;
+		r2 = 1.0f - r2;
 	}
 
-	const float a = 1 - r1 - r2;
+	const float a = 1.0f - r1 - r2;
 	const float &b = r1;
 	const float &c = r2;
 
