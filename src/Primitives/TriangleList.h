@@ -30,17 +30,7 @@ class TriangleList
 		unsigned int materialIdx;
 	};
 
-	struct GPUTextures
-	{
-		std::vector<unsigned int> textureDims;
-		std::vector<unsigned int> textureOffsets;
-		std::vector<vec4> textureColors;
-	};
-
   public:
-	TriangleList() = default;
-	~TriangleList();
-
 	void addTriangle(vec3 p0, vec3 p1, vec3 p2, vec3 n0, vec3 n1, vec3 n2, unsigned int matIdx, vec2 t0 = vec2(0.0f),
 					 vec2 t1 = vec2(0.0f), vec2 t2 = vec2(0.0f));
 
@@ -48,8 +38,6 @@ class TriangleList
 				   bool normalize = true);
 
 	inline size_t getPrimCount() const { return m_Indices.size(); }
-
-	GPUTextures createTextureBuffer();
 
   public:
 	std::vector<vec4> m_Vertices{};
@@ -60,16 +48,13 @@ class TriangleList
 	std::vector<unsigned int> m_MaterialIdxs{};
 	std::vector<unsigned int> m_LightIndices{};
 
-	std::vector<core::Surface *> m_Textures{};
-	std::map<std::string, unsigned int> m_LoadedTextures;
-
 	std::vector<bvh::AABB> m_AABBs{};
 
 	std::vector<uvec4> m_Indices{};
 
 	unsigned int loadTexture(const std::string &path);
 
-	std::vector<Triangle*> getTriangles() const;
+	std::vector<Triangle *> getTriangles() const;
 
   private:
 	void processNode(aiNode *node, const aiScene *scene, std::vector<Mesh> &meshes, const std::string &dir);

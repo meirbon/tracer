@@ -124,7 +124,8 @@ class Application
 	bool m_MovementLocked = false, m_DynamicLocked = false;
 	int m_Width, m_Height;
 
-	prims::SceneObjectList *m_ObjectList;
+	prims::TriangleList m_TriangleList;
+	prims::SceneObjectList m_ObjectList;
 	bvh::TopLevelBVH *m_Scene = nullptr;
 
 	ctpl::ThreadPool *m_TPool;

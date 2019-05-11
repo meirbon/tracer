@@ -1,6 +1,9 @@
 #pragma once
 
+#include <map>
 #include <vector>
+
+#include <glm/glm.hpp>
 
 #include "Core/Surface.h"
 
@@ -10,6 +13,13 @@
 class MaterialManager
 {
   public:
+	struct GPUTextures
+	{
+		std::vector<unsigned int> textureDims;
+		std::vector<unsigned int> textureOffsets;
+		std::vector<glm::vec4> textureColors;
+	};
+
 	static MaterialManager *GetInstance();
 
 	Material &GetMaterial(size_t index);
@@ -32,6 +42,8 @@ class MaterialManager
 
 	static void Delete();
 
+	GPUTextures createTextureBuffer() const;
+
   private:
 	MaterialManager();
 	~MaterialManager() = default;
@@ -40,4 +52,5 @@ class MaterialManager
 	std::vector<Microfacet> m_Microfacets;
 
 	std::vector<core::Surface *> m_Textures;
+	std::map<std::string, unsigned int> m_LoadedTextures;
 };

@@ -23,8 +23,6 @@ bvh::GameObject *motherGameObject;
 bvh::GameObject *cubeMother1, *cubeMother2, *cubeMother3, *cubeMother4;
 #endif
 
-static prims::TriangleList *triangleList = new prims::TriangleList();
-
 Application::Application(utils::Window *window, RendererType type, int width, int height, const char *scene,
 						 const char *skybox)
 	: m_Type(type), m_Camera(width, height, 70.0f), m_tIndex(0), m_Width(width), m_Height(height), m_Window(window)
@@ -37,7 +35,6 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 
 	const auto cores = ctpl::nr_of_cores;
 	m_TPool = new ctpl::ThreadPool(cores);
-	m_ObjectList = new prims::SceneObjectList();
 
 	m_Type = type;
 	m_DrawShader = new gl::Shader("shaders/quad.vert", "shaders/quad.frag");
@@ -46,8 +43,17 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 	{
 		//		else
 		//			Dragon(m_ObjectList);
-		Micromaterials(m_ObjectList);
+		//		Micromaterials(m_ObjectList);
 		//		CornellBox(m_ObjectList);
+		m_RenderScale = 0.5f;
+		const auto lightMat = Material::light(vec3(1.0f));
+		const unsigned int lightIdx = MaterialManager::GetInstance()->AddMaterial(lightMat);
+		prims::Plane::create(vec3(100.0f, 100.0f, 10.0f), vec3(-100.0f, 100.0f, 10.0f), vec3(100.0f, 100.0f, -10.0f),
+							 lightIdx, &m_ObjectList);
+		m_TriangleList.loadModel("models/sponza/sponza.obj", 0.1f, mat4(1.0f), -1, false);
+		const auto ts = m_TriangleList.getTriangles();
+		for (auto *t : ts)
+			m_ObjectList.AddObject(t);
 	}
 	else
 	{
@@ -55,17 +61,17 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 		{
 			// prims::Load(scene, defaultMaterial, glm::vec3(0.0f), 1.0f, m_GpuList);
 			std::cout << "Loading model: " << scene << std::endl;
-			triangleList->loadModel(scene, 1.0f, mat4(1.0f), -1, true);
+			m_TriangleList.loadModel(scene, 1.0f, mat4(1.0f), -1, true);
 		}
 		else
 		{
 			//			CornellBox(triangleList);
-			Micromaterials(triangleList);
-			// const auto lightMat = Material::light(vec3(10.0f));
-			// const unsigned int lightIdx = MaterialManager::GetInstance()->AddMaterial(lightMat);
-			// prims::TrianglePlane::create(vec3(100.0f, 100.0f, 10.0f), vec3(-100.0f, 100.0f, 10.0f),
-			//  vec3(100.0f, 100.0f, -10.0f), lightIdx, triangleList);
-			// triangleList->loadModel("models/sponza/sponza.obj", 0.1f, mat4(1.0f), -1, false);
+			//			Micromaterials(triangleList);
+			const auto lightMat = Material::light(vec3(1.0f));
+			const unsigned int lightIdx = MaterialManager::GetInstance()->AddMaterial(lightMat);
+			prims::Plane::create(vec3(100.0f, 100.0f, 10.0f), vec3(-100.0f, 100.0f, 10.0f),
+								 vec3(100.0f, 100.0f, -10.0f), lightIdx, &m_TriangleList);
+			m_TriangleList.loadModel("models/sponza/sponza.obj", 0.1f, mat4(1.0f), -1, false);
 		}
 		// else
 		// Dragon(m_GpuList);
@@ -246,12 +252,13 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 	{
 	case (GPU):
 	{
-		m_Renderer = new WFTracer(triangleList, m_OutputTexture[0], m_OutputTexture[1], &m_Camera, m_Skybox, m_TPool);
+		m_Renderer =
+			new WFTracer(&m_TriangleList, m_OutputTexture[0], m_OutputTexture[1], &m_Camera, m_Skybox, m_TPool);
 		break;
 	}
 	case (CPU_RAYTRACER):
 	{
-		m_Scene = new bvh::TopLevelBVH(m_ObjectList, gameObjects, bvh::BVHType::SAH_BINNING, m_TPool);
+		m_Scene = new bvh::TopLevelBVH(&m_ObjectList, gameObjects, bvh::BVHType::SAH_BINNING, m_TPool);
 		std::cout << "Primitive count: " << m_Scene->GetPrimitiveCount() << std::endl;
 		m_Renderer = new core::RayTracer(m_Scene, vec3(0.0f), vec3(0.01f), 16, &m_Camera, m_Width, m_Height, m_Skybox);
 		m_BVHRenderer = new core::BVHRenderer(m_Scene, &m_Camera, m_Width, m_Height);
@@ -260,7 +267,7 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 	case (CPU):
 	{
 	default:
-		m_Scene = new bvh::TopLevelBVH(m_ObjectList, gameObjects, bvh::BVHType::SAH_BINNING, m_TPool);
+		m_Scene = new bvh::TopLevelBVH(&m_ObjectList, gameObjects, bvh::BVHType::SAH_BINNING, m_TPool);
 		std::cout << "Primitive count: " << m_Scene->GetPrimitiveCount() << std::endl;
 		m_Renderer = new core::PathTracer(m_Scene, m_Width, m_Height, &m_Camera, m_Skybox);
 		m_Renderer->SetMode(core::Mode::NEE_MIS);
@@ -287,8 +294,6 @@ Application::~Application()
 	delete m_Renderer;
 	delete m_Skybox;
 	delete m_Scene;
-
-	delete triangleList;
 }
 
 void Application::Tick(float) noexcept
@@ -467,9 +472,9 @@ void Application::Draw(float deltaTime)
 	ImGui::Text("FPS: %f", 1000.0f / avgFrametime);
 	const auto modes = m_Renderer->GetModes();
 	lastMode = renderMode;
-	ImGui::ListBox("Mode", &renderMode, modes.data(), modes.size());
-	if (lastMode != renderMode)
+	if (ImGui::ListBox("Mode", &renderMode, modes.data(), modes.size()))
 		m_Renderer->SetMode(modes[renderMode]), m_Renderer->Reset();
+
 	ImGui::End();
 
 	if (m_Type == CPU || m_Type == CPU_RAYTRACER)
@@ -493,8 +498,8 @@ void Application::Resize(int newWidth, int newHeight)
 	m_Width = newWidth;
 	m_Height = newHeight;
 
-	const int renderWidth = newWidth * m_RenderScale;
-	const int renderHeight = newHeight * m_RenderScale;
+	const int renderWidth = static_cast<int>(newWidth * m_RenderScale);
+	const int renderHeight = static_cast<int>(newHeight * m_RenderScale);
 
 	m_Camera.setDimensions({renderWidth, renderHeight});
 

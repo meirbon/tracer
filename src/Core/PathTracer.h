@@ -76,7 +76,7 @@ class PathTracer : public Renderer
 		return false;
 	}
 
-	void Resize(int  width, int  height, gl::Texture * newOutput1, gl::Texture * newOutput2) override;
+	void Resize(int width, int height, gl::Texture *newOutput1, gl::Texture *newOutput2) override;
 
 	void SetMode(const std::string &mode) override
 	{
@@ -96,8 +96,8 @@ class PathTracer : public Renderer
 
   private:
 	prims::WorldScene *m_Scene;
-	glm::vec3 *m_Pixels;
-	float *m_Energy;
+	std::vector<glm::vec3> m_Pixels;
+	std::vector<float> m_Energy;
 	int m_Width, m_Height, m_Samples;
 	std::vector<float> m_LightLotteryTickets;
 	float m_LightArea;
@@ -107,7 +107,7 @@ class PathTracer : public Renderer
 	Camera *m_Camera;
 	const MaterialManager *m_Materials;
 
-	ctpl::ThreadPool *tPool = nullptr;
+	ctpl::ThreadPool tPool;
 	std::vector<std::future<void>> tResults{};
 	std::vector<RandomGenerator *> m_Rngs{};
 };

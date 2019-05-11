@@ -216,6 +216,24 @@ glm::vec3 Triangle::GetNormal(const glm::vec3 &hitPoint) const
 glm::vec2 Triangle::GetTexCoords(const glm::vec3 &hitPoint) const
 {
 	const vec3 bary = GetBarycentricCoordinatesAt(hitPoint);
-	return bary.x * t0 + bary.y * t1 + bary.z * t2;
+	const vec2 texCoords = bary.x * t0 + bary.y * t1 + bary.z * t2;
+	float x = fmod(texCoords.x, 1.0f);
+	float y = fmod(texCoords.y, 1.0f);
+
+	if (x < 0)
+		x += 1.0f;
+	if (y < 0)
+		y += 1.0f;
+
+	return {x, y};
+}
+
+float Triangle::CalculateArea() const
+{
+	const float a = glm::length(p0 - p1);
+	const float b = glm::length(p1 - p2);
+	const float c = glm::length(p2 - p0);
+	const float s = (a + b + c) / 2.f;
+	return sqrtf(s * (s - a) * (s - b) * (s - c));
 }
 } // namespace prims

@@ -9,7 +9,7 @@ namespace core
 
 #define SAMPLE_COUNT 1
 #define RUSSIAN_ROULETTE 1
-#define LOOP_DEPTH 16
+#define LOOP_DEPTH 10
 #define FIREFLYFILTER 1
 
 #define TILE_HEIGHT 32
@@ -19,11 +19,9 @@ using namespace prims;
 
 PathTracer::PathTracer(WorldScene *scene, int width, int height, Camera *camera, Surface *skyBox)
 	: m_Scene(scene), m_Width(width), m_Height(height), m_SkyboxEnabled(skyBox != nullptr), m_SkyBox(skyBox),
-	  m_Camera(camera)
+	  m_Camera(camera), tPool(ctpl::nr_of_cores)
 {
 	m_Modes = {"NEE", "IS", "NEE_IS", "NEE_MIS", "Reference MF", "Reference"};
-	m_Pixels = new glm::vec3[m_Width * m_Height];
-	m_Energy = new float[m_Width * m_Height];
 
 	Reset();
 	int tiles = std::ceil(m_Width / TILE_WIDTH) * std::ceil(m_Height / TILE_HEIGHT);
@@ -34,9 +32,7 @@ PathTracer::PathTracer(WorldScene *scene, int width, int height, Camera *camera,
 	if (!lights.empty())
 	{
 		for (SceneObject *light : lights)
-		{
 			m_LightArea += light->GetArea();
-		}
 
 		m_LightLotteryTickets.resize(lights.size());
 		m_LightLotteryTickets[0] = lights[0]->GetArea() / m_LightArea;
@@ -47,8 +43,6 @@ PathTracer::PathTracer(WorldScene *scene, int width, int height, Camera *camera,
 		m_LightLotteryTickets[lights.size() - 1] = 1.f;
 	}
 
-	this->tPool = new ctpl::ThreadPool(ctpl::nr_of_cores);
-
 	for (int i = 0; i < tiles; i++)
 		m_Rngs.push_back(new Xor128());
 
@@ -56,18 +50,14 @@ PathTracer::PathTracer(WorldScene *scene, int width, int height, Camera *camera,
 	m_Materials = MaterialManager::GetInstance();
 }
 
-PathTracer::~PathTracer()
-{
-	delete tPool;
-
-	delete[] m_Pixels;
-	delete[] m_Energy;
-}
+PathTracer::~PathTracer() {}
 
 void PathTracer::Reset()
 {
-	memset(m_Pixels, 0, m_Width * m_Height * 4);
-	memset(m_Energy, 0, m_Width * m_Height * 4);
+	m_Pixels.clear();
+	m_Pixels.resize(m_Width * m_Height);
+	m_Energy.clear();
+	m_Energy.resize(m_Width, m_Height);
 	m_Samples = 0;
 }
 
@@ -78,9 +68,7 @@ float PathTracer::GetEnergy() const
 	const float oneThird = 1.f / 3.f;
 	float totalEnergy = 0.0f;
 	for (int i = 0; i < m_Width * m_Height; i++)
-	{
 		totalEnergy += m_Energy[i] * oneThird;
-	}
 	return totalEnergy;
 }
 
@@ -118,7 +106,7 @@ void PathTracer::Render(Surface *output)
 		for (int tile_x = 0; tile_x < hTiles; tile_x++)
 		{
 			RandomGenerator *rng = m_Rngs.at(idx);
-			tResults.push_back(tPool->push([tile_x, tile_y, this, output, &rng, EFactor](int) -> void {
+			tResults.push_back(tPool.push([tile_x, tile_y, this, output, &rng, EFactor](int) -> void {
 				for (int y = 0; y < TILE_HEIGHT; y++)
 				{
 					const int pixel_y = y + tile_y * TILE_HEIGHT;
@@ -137,14 +125,9 @@ void PathTracer::Render(Surface *output)
 						const int idx = pixel_x + pixel_y * m_Width;
 
 						if (m_Samples > 0)
-						{
-							const float factor = 1.0f / float(m_Samples + 1);
-							m_Pixels[idx] = m_Pixels[idx] * float(m_Samples) * factor + color * factor;
-						}
+							m_Pixels[idx] = (m_Pixels[idx] * float(m_Samples) + color) / float(m_Samples + 1);
 						else
-						{
 							m_Pixels[idx] = color;
-						}
 
 						m_Energy[idx] = color.x + color.y + color.z;
 						output->Plot(pixel_x, pixel_y, m_Pixels[idx]);
@@ -161,7 +144,7 @@ void PathTracer::Render(Surface *output)
 	m_Samples++;
 }
 
-glm::vec3 PathTracer::Trace(Ray &r, uint &depth, float refractionIndex, RandomGenerator &rng)
+glm::vec3 PathTracer::Trace(Ray &r, uint &, float, RandomGenerator &rng)
 {
 	auto E = vec3(0.0f);
 	for (int i = 0; i < SAMPLE_COUNT; i++)
@@ -238,7 +221,11 @@ glm::vec3 PathTracer::SampleNEE(Ray &r, RandomGenerator &rng) const
 			break;
 		}
 
-		const glm::vec3 albedoColor = mat.albedo;
+		glm::vec3 albedoColor = mat.albedo;
+		if (mat.textureIdx >= 0)
+			albedoColor = MaterialManager::GetInstance()
+							  ->GetTexture(mat.textureIdx)
+							  .getColorAt(r.obj->GetTexCoords(r.GetHitpoint()));
 		vec3 normal = r.normal;
 		const bool flipNormal = dot(normal, r.direction) > 0.0f;
 		if (flipNormal)
@@ -340,7 +327,11 @@ glm::vec3 PathTracer::SampleIS(Ray &r, RandomGenerator &rng) const
 			break;
 		}
 
-		const glm::vec3 albedoColor = mat.albedo;
+		glm::vec3 albedoColor = mat.albedo;
+		if (mat.textureIdx >= 0)
+			albedoColor = MaterialManager::GetInstance()
+							  ->GetTexture(mat.textureIdx)
+							  .getColorAt(r.obj->GetTexCoords(r.GetHitpoint()));
 		vec3 normal = r.normal;
 		const bool flipNormal = dot(normal, r.direction) > 0.0f;
 		if (flipNormal)
@@ -411,7 +402,11 @@ glm::vec3 PathTracer::SampleNEE_IS(Ray &r, RandomGenerator &rng) const
 			break;
 		}
 
-		const glm::vec3 albedoColor = mat.albedo;
+		glm::vec3 albedoColor = mat.albedo;
+		if (mat.textureIdx >= 0)
+			albedoColor = MaterialManager::GetInstance()
+							  ->GetTexture(mat.textureIdx)
+							  .getColorAt(r.obj->GetTexCoords(r.GetHitpoint()));
 		vec3 normal = r.normal;
 		const bool flipNormal = dot(normal, r.direction) > 0.0f;
 		if (flipNormal)
@@ -547,7 +542,11 @@ glm::vec3 PathTracer::SampleNEE_MIS(Ray &r, RandomGenerator &rng) const
 		throughput *= tUpdate;
 		tUpdate = vec3(1.0f);
 
-		const glm::vec3 albedoColor = mat.albedo;
+		glm::vec3 albedoColor = mat.albedo;
+		if (mat.textureIdx >= 0)
+			albedoColor = MaterialManager::GetInstance()
+							  ->GetTexture(mat.textureIdx)
+							  .getColorAt(r.obj->GetTexCoords(r.GetHitpoint()));
 		normal = r.normal;
 		const bool flipNormal = dot(normal, r.direction) > 0.0f;
 		if (flipNormal)
@@ -668,7 +667,11 @@ glm::vec3 PathTracer::SampleReference(Ray &r, RandomGenerator &rng) const
 			break;
 		}
 
-		const glm::vec3 albedoColor = mat.albedo;
+		glm::vec3 albedoColor = mat.albedo;
+		if (mat.textureIdx >= 0)
+			albedoColor = MaterialManager::GetInstance()
+							  ->GetTexture(mat.textureIdx)
+							  .getColorAt(r.obj->GetTexCoords(r.GetHitpoint()));
 		vec3 normal = r.normal;
 		const bool flipNormal = dot(normal, r.direction) > 0.0f;
 		if (flipNormal)
@@ -770,19 +773,19 @@ SceneObject *PathTracer::RandomPointOnLight(float &NEEpdf, RandomGenerator &rng)
 	return lights.at(winningIdx);
 }
 
-void PathTracer::Resize(int width, int height, gl::Texture *newOutput1, gl::Texture *)
+void PathTracer::Resize(int width, int height, gl::Texture *, gl::Texture *)
 {
 	m_Width = width;
 	m_Height = height;
 
-	delete[] m_Pixels;
-	delete[] m_Energy;
+	m_Pixels.clear();
+	m_Energy.clear();
 
-	m_Pixels = new glm::vec3[m_Width * m_Height];
-	m_Energy = new float[m_Width * m_Height];
+	m_Pixels.resize(m_Width * m_Height);
+	m_Energy.resize(m_Width * m_Height);
 	Reset();
 
-	int tiles = std::ceil(m_Width / TILE_WIDTH) * std::ceil(m_Height / TILE_HEIGHT);
+	int tiles = glm::ceil(m_Width / TILE_WIDTH) * glm::ceil(m_Height / TILE_HEIGHT);
 
 	for (auto *rng : m_Rngs)
 		delete rng;
@@ -822,7 +825,11 @@ glm::vec3 PathTracer::SampleReferenceMicrofacet(Ray &r, RandomGenerator &rng) co
 			break;
 		}
 
-		const glm::vec3 albedoColor = mat.albedo;
+		glm::vec3 albedoColor = mat.albedo;
+		if (mat.textureIdx >= 0)
+			albedoColor = MaterialManager::GetInstance()
+							  ->GetTexture(mat.textureIdx)
+							  .getColorAt(r.obj->GetTexCoords(r.GetHitpoint()));
 		vec3 normal = r.normal;
 		const bool flipNormal = dot(normal, r.direction) > 0.0f;
 		if (flipNormal)
@@ -864,10 +871,7 @@ glm::vec3 PathTracer::SampleReferenceMicrofacet(Ray &r, RandomGenerator &rng) co
 				if (rng.Rand(1.0f) > Fr)
 				{
 					if (doAbsorption)
-					{
-						absorption = glm::vec3(exp(-mat.absorption.r * r.t), exp(-mat.absorption.g * r.t),
-											   exp(-mat.absorption.b * r.t));
-					}
+						absorption = glm::exp(-mat.absorption * r.t);
 
 					throughput *= absorption;
 					woLocal = glm::normalize(n * -wiLocal + wmLocal * (n * cosTheta - sqrtf(k)));
@@ -936,6 +940,11 @@ glm::vec3 PathTracer::SampleNEEMicrofacet(Ray &r, RandomGenerator &rng) const
 		if (flipNormal)
 			normal *= -1.0f;
 
+		glm::vec3 color = mat.albedo;
+		if (mat.textureIdx >= 0)
+			color = MaterialManager::GetInstance()
+						->GetTexture(mat.textureIdx)
+						.getColorAt(r.obj->GetTexCoords(r.GetHitpoint()));
 		wiLocal = rng.worldToLocalMicro(normal, r.direction, u, v, w);
 		wmLocal = mf.sampleWm(rng);
 		wm = rng.localToWorldMicro(wmLocal, u, v, w);
@@ -994,7 +1003,7 @@ glm::vec3 PathTracer::SampleNEEMicrofacet(Ray &r, RandomGenerator &rng) const
 			wo = rng.localToWorldMicro(woLocal, u, v, w);
 			const float weight = mf.weight(woLocal, wiLocal, wmLocal);
 
-			throughput *= mat.albedo * weight;
+			throughput *= color * weight;
 			r = Ray(p + EPSILON * wo, wo);
 		}
 		else
@@ -1030,7 +1039,7 @@ glm::vec3 PathTracer::SampleNEEMicrofacet(Ray &r, RandomGenerator &rng) const
 						const float neeWeight = 1.0f - mf.weight(L, wi, wm);
 						if (neeWeight > 0.0f)
 						{
-							const vec3 Ld = mat.albedo * weight * lightMat.emission * SolidAngle * NdotL / NEEpdf;
+							const vec3 Ld = color * weight * lightMat.emission * SolidAngle * NdotL / NEEpdf;
 							E += throughput * Ld * neeWeight;
 						}
 					}
@@ -1038,7 +1047,7 @@ glm::vec3 PathTracer::SampleNEEMicrofacet(Ray &r, RandomGenerator &rng) const
 			}
 			// NEE
 
-			throughput *= mat.albedo * weight;
+			throughput *= color * weight;
 			r = Ray(p + EPSILON * wo, wo);
 		}
 	}

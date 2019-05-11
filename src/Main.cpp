@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 	std::cout << "Application started." << std::endl;
 
 	bool oFullScreen = false;
-	RendererType rendererType = GPU;
+	RendererType rendererType = CPU;
 	std::string file;
 
 	for (int i = 1; i < argc; i++)

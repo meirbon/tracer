@@ -43,8 +43,14 @@ size_t MaterialManager::AddMicrofacet(Microfacet mat)
 
 size_t MaterialManager::AddTexture(const char *path)
 {
-	auto idx = m_Textures.size();
-	m_Textures.push_back(new Surface(path));
+	const std::string p = path;
+	if (m_LoadedTextures.find(p) != m_LoadedTextures.end()) // Texture already in memory
+		return m_LoadedTextures.at(path);
+
+	auto *tex = new core::Surface(path);
+	size_t idx = m_Textures.size();
+	m_LoadedTextures[path] = idx;
+	m_Textures.push_back(tex);
 	return idx;
 }
 
@@ -56,3 +62,37 @@ void MaterialManager::Delete()
 }
 
 MaterialManager::MaterialManager() { AddMaterial(Material::lambertian(glm::vec3(1.0f))); }
+
+MaterialManager::GPUTextures MaterialManager::createTextureBuffer() const
+{
+	using namespace glm;
+
+	std::vector<unsigned int> tDims;
+	std::vector<unsigned int> tOffsets;
+	std::vector<vec4> tColors;
+
+	for (auto &tex : m_Textures)
+	{
+		unsigned int offset = tColors.size();
+		const vec4 *buffer = tex->GetTextureBuffer();
+		const uint width = tex->getWidth();
+		const uint height = tex->getHeight();
+		for (uint y = 0; y < height; y++)
+		{
+			for (uint x = 0; x < width; x++)
+			{
+				tColors.push_back(buffer[x + y * width]);
+			}
+		}
+
+		tOffsets.push_back(offset);
+		tDims.push_back(width);
+		tDims.push_back(height);
+	}
+
+	GPUTextures buffer;
+	buffer.textureDims = std::move(tDims);
+	buffer.textureOffsets = std::move(tOffsets);
+	buffer.textureColors = std::move(tColors);
+	return buffer;
+}

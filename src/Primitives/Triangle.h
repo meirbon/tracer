@@ -32,5 +32,7 @@ class Triangle : public SceneObject
 	//    const WorldScene* m_Scene) const override;
 	vec3 GetNormal(const vec3 &hitPoint) const override;
 	vec2 GetTexCoords(const vec3 &hitPoint) const override;
+
+	float CalculateArea() const;
 };
 }

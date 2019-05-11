@@ -82,14 +82,16 @@ void MBVHTree::ConstructBVH()
 
 void MBVHTree::TraceRay(core::Ray &r) const
 {
-	TraverseWithStack(r);
+	Traverse(r);
+	//	TraverseWithStack(r);
 	if (r.IsValid())
 		r.normal = r.obj->GetNormal(r.GetHitpoint());
 }
 
 bool MBVHTree::TraceShadowRay(core::Ray &r, float tMax) const
 {
-	TraverseWithStack(r);
+	Traverse(r);
+	//	TraverseWithStack(r);
 	return r.t < tMax;
 }
 
@@ -121,8 +123,8 @@ unsigned int MBVHTree::TraceDebug(core::Ray &r) const { return TraverseDebug(r);
 
 void MBVHTree::TraverseWithStack(core::Ray &r) const
 {
-	MBVHTraversal todo[16];
-	int stackptr = 0;
+	MBVHTraversal todo[32];
+	int stack_ptr = 0;
 
 	todo[0].leftFirst = 0;
 	todo[0].count = -1;
@@ -130,10 +132,10 @@ void MBVHTree::TraverseWithStack(core::Ray &r) const
 	const vec3 invDir = 1.f / r.direction;
 	const std::vector<prims::SceneObject *> &objects = m_ObjectList->GetObjects();
 
-	while (stackptr >= 0)
+	while (stack_ptr >= 0)
 	{
-		const MBVHTraversal &mTodo = todo[stackptr];
-		stackptr--;
+		const MBVHTraversal &mTodo = todo[stack_ptr];
+		stack_ptr--;
 		if (mTodo.count > -1) // leaf node
 			for (int i = 0; i < mTodo.count; i++)
 				objects[m_PrimitiveIndices[mTodo.leftFirst + i]]->Intersect(r);
@@ -149,9 +151,9 @@ void MBVHTree::TraverseWithStack(core::Ray &r) const
 					const unsigned int idx = (mHit.tmini[i] & 0b11);
 					if (mHit.result[idx])
 					{
-						stackptr++;
-						todo[stackptr].leftFirst = n.child[idx];
-						todo[stackptr].count = n.count[idx];
+						stack_ptr++;
+						todo[stack_ptr].leftFirst = n.child[idx];
+						todo[stack_ptr].count = n.count[idx];
 					}
 				}
 			}

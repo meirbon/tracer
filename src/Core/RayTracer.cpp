@@ -105,7 +105,11 @@ glm::vec3 RayTracer::GetDiffuseSpecularColor(const Ray &r, const Material &mat, 
 	if (m_LightCount < 0)
 		return {};
 
-	glm::vec3 ret = ambientColor * mat.albedo;
+	glm::vec3 color = mat.albedo;
+	if (mat.textureIdx >= 0)
+		color = MaterialManager::GetInstance()->GetTexture(mat.textureIdx).getColorAt(r.obj->GetTexCoords(r.GetHitpoint()));
+
+	glm::vec3 ret = ambientColor * color;
 
 	const auto l1 = (unsigned int)(rng.Rand() * (m_LightCount - 1));
 	const auto l2 = (unsigned int)(rng.Rand() * (m_LightCount - 1));
@@ -115,7 +119,10 @@ glm::vec3 RayTracer::GetDiffuseSpecularColor(const Ray &r, const Material &mat, 
 	for (const auto &light : lights)
 	{
 		const auto p = r.GetHitpoint();
-		const auto towardsLight = light->centroid - p;
+
+		vec3 lNormal;
+		const vec3 lightPos = light->GetRandomPointOnSurface(glm::normalize(light->centroid - p), lNormal, rng);
+		const vec3 towardsLight = lightPos - p;
 		const float towardsLightDot = glm::dot(towardsLight, towardsLight);
 		const float distToLight = sqrtf(towardsLightDot);
 		const vec3 towardsLightNorm = towardsLight / distToLight;
@@ -132,16 +139,13 @@ glm::vec3 RayTracer::GetDiffuseSpecularColor(const Ray &r, const Material &mat, 
 		Ray shadowRay = {p + EPSILON * towardsLightNorm, towardsLightNorm};
 		if (!m_Scene->TraceShadowRay(shadowRay, distToLight - 2.0f * EPSILON))
 		{
-			glm::vec3 lNormal;
-			const glm::vec3 pointOnLight = light->GetRandomPointOnSurface(towardsLightNorm, lNormal, rng);
 			const float LNdotL = glm::dot(lNormal, -towardsLightNorm);
 			if (LNdotL > 0.0f)
 			{
-				const auto &mat = MaterialManager::GetInstance()->GetMaterial(r.obj->materialIdx);
 				const auto &lightMat = MaterialManager::GetInstance()->GetMaterial(light->materialIdx);
 				const float SolidAngle = LNdotL * light->m_Area / towardsLightDot;
 
-				ret = mat.albedo * lightMat.emission * SolidAngle * NdotL * float(m_LightCount);
+				ret = color * lightMat.emission * SolidAngle * NdotL * float(m_LightCount);
 			}
 		}
 	}

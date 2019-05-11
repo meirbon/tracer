@@ -10,11 +10,6 @@ static MaterialManager *mInstance = MaterialManager::GetInstance();
 
 namespace prims
 {
-TriangleList::~TriangleList()
-{
-	for (auto &m_Texture : m_Textures)
-		delete m_Texture;
-}
 
 void TriangleList::addTriangle(vec3 p0, vec3 p1, vec3 p2, vec3 n0, vec3 n1, vec3 n2, unsigned int matIdx, vec2 t0,
 							   vec2 t1, vec2 t2)
@@ -126,38 +121,6 @@ void TriangleList::loadModel(const std::string &path, float scale, mat4 mat, int
 
 		offset += mesh.positions.size();
 	}
-}
-
-TriangleList::GPUTextures TriangleList::createTextureBuffer()
-{
-	std::vector<unsigned int> tDims;
-	std::vector<unsigned int> tOffsets;
-	std::vector<vec4> tColors;
-
-	for (auto &tex : m_Textures)
-	{
-		unsigned int offset = tColors.size();
-		const vec4 *buffer = tex->GetTextureBuffer();
-		const uint width = tex->getWidth();
-		const uint height = tex->getHeight();
-		for (uint y = 0; y < height; y++)
-		{
-			for (uint x = 0; x < width; x++)
-			{
-				tColors.push_back(buffer[x + y * width]);
-			}
-		}
-
-		tOffsets.push_back(offset);
-		tDims.push_back(width);
-		tDims.push_back(height);
-	}
-
-	GPUTextures buffer;
-	buffer.textureDims = std::move(tDims);
-	buffer.textureOffsets = std::move(tOffsets);
-	buffer.textureColors = std::move(tColors);
-	return buffer;
 }
 
 void TriangleList::processNode(aiNode *node, const aiScene *scene, std::vector<Mesh> &meshes, const std::string &dir)
@@ -307,14 +270,7 @@ TriangleList::Mesh TriangleList::processMesh(aiMesh *mesh, const aiScene *scene,
 
 unsigned int TriangleList::loadTexture(const std::string &path)
 {
-	if (m_LoadedTextures.find(path) != m_LoadedTextures.end()) // Texture already in memory
-		return m_LoadedTextures.at(path);
-
-	auto *tex = new core::Surface(path.c_str());
-	unsigned int idx = m_Textures.size();
-	m_LoadedTextures[path] = idx;
-	m_Textures.push_back(tex);
-	return idx;
+	return MaterialManager::GetInstance()->AddTexture(path.c_str());
 }
 
 std::vector<Triangle *> TriangleList::getTriangles() const
@@ -323,9 +279,26 @@ std::vector<Triangle *> TriangleList::getTriangles() const
 	for (uint i = 0; i < m_Indices.size(); i++)
 	{
 		const auto &idx = m_Indices.at(i);
-		triangles.push_back(new Triangle(m_Vertices[idx.x], m_Vertices[idx.y], m_Vertices[idx.z], m_Normals[idx.x],
-										 m_Normals[idx.y], m_Normals[idx.z], m_MaterialIdxs[i], m_TexCoords[idx.x],
-										 m_TexCoords[idx.y], m_TexCoords[idx.z]));
+		auto *t = new Triangle();
+		t->p0 = m_Vertices[idx.x];
+		t->p1 = m_Vertices[idx.y];
+		t->p2 = m_Vertices[idx.z];
+
+		t->normal = m_CenterNormals[i];
+
+		t->n0 = m_Normals[idx.x];
+		t->n1 = m_Normals[idx.y];
+		t->n2 = m_Normals[idx.z];
+
+		t->t0 = m_TexCoords[idx.x];
+		t->t1 = m_TexCoords[idx.y];
+		t->t2 = m_TexCoords[idx.z];
+
+		t->centroid = (t->p0 + t->p1 + t->p2) / 3.0f;
+		t->m_Area = t->CalculateArea();
+		t->materialIdx = m_MaterialIdxs[i];
+
+		triangles[i] = t;
 	}
 
 	return triangles;

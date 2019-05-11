@@ -10,7 +10,7 @@ project("Tracer")
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.h")
 
 set(CMAKE_CXX_STANDARD 17)
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES} src/Utils/Xor128.cpp)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 

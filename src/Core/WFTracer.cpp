@@ -209,11 +209,11 @@ void WFTracer::setupMaterials()
 
 void WFTracer::setupTextures()
 {
-	if (!m_TList->m_Textures.empty())
+	if (!MaterialManager::GetInstance()->GetTextures().empty())
 	{
 		std::vector<TextureInfo> textureInfos{};
 		std::vector<vec4> textureColors;
-		for (auto *tex : m_TList->m_Textures)
+		for (auto *tex : MaterialManager::GetInstance()->GetTextures())
 		{
 			const int offset = int(textureColors.size());
 			const auto texSize = tex->getWidth() * tex->getHeight();
