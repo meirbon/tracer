@@ -75,6 +75,6 @@ struct Camera
 	bool isDirty = false;
 
   private:
-	cl::Buffer<CLCamera> *gpuBuffer = nullptr;
+	cl::Buffer<CLCamera>* m_GPUBuffer = nullptr;
 };
 } // namespace core

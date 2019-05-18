@@ -21,7 +21,7 @@ void BVHRenderer::Render(Surface *output)
 	m_Width = output->getWidth();
 	m_Height = output->getHeight();
 
-	for (int i = 0; i < ctpl::nr_of_cores; i++)
+	for (unsigned int i = 0; i < ctpl::nr_of_cores; i++)
 	{
 		tResults.push_back(m_TPool->push([i, this, output](int) {
 			for (int y = i; y < m_Height; y += ctpl::nr_of_cores)
@@ -51,7 +51,7 @@ void BVHRenderer::Render(Surface *output)
 	tResults.clear();
 }
 
-void BVHRenderer::Resize(int  width, int  height, gl::Texture *, gl::Texture *) {}
+void BVHRenderer::Resize(int, int, gl::Texture *, gl::Texture *) {}
 
 void BVHRenderer::SwitchSkybox() {}
 } // namespace core

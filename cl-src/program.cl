@@ -13,14 +13,13 @@ typedef struct
 	float aspectRatio;
 } GpuCamera;
 
-kernel void generate(write_only image2d_t outimg, // 0
-					 global float4 *colorBuffer,  // 1
-					 global Ray *rays,			  // 2
-					 global ShadowRay *sRays,	 // 3
-					 global GpuCamera *camera,	// 4
-					 int width,					  // 5
-					 int height,				  // 6
-					 int frame					  // 7
+kernel void generate(global float4 *colorBuffer, // 0
+					 global Ray *rays,			 // 1
+					 global ShadowRay *sRays,	// 2
+					 global GpuCamera *camera,   // 3
+					 int width,					 // 4
+					 int height,				 // 5
+					 int frame					 // 6
 )
 {
 	int intx = get_global_id(0);
@@ -30,10 +29,7 @@ kernel void generate(write_only image2d_t outimg, // 0
 	int pixelIdx = intx + inty * width;
 
 	if (frame <= 1)
-	{
 		colorBuffer[pixelIdx] = (float4)(0);
-		write_imagef(outimg, (int2)(intx, inty), (float4)(0, 0, 0, 1));
-	}
 
 	// Only regenerate rays that are invalid, others will keep going
 	if (rays[pixelIdx].hit_idx < 0 || frame <= 1)

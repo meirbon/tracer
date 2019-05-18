@@ -2,8 +2,11 @@
 #include <Windows.h>
 #endif
 
+#include <map>
+
 #include "CL/Buffer.h"
 #include "CL/OpenCL.h"
+#include "Device.h"
 #include "GL/Texture.h"
 #include "Shared.h"
 
@@ -28,66 +31,50 @@ using namespace utils;
 static cl_device_id getFirstDevice(cl_context context)
 {
 	size_t dataSize;
-	cl_device_id *devices;
 	clGetContextInfo(context, CL_CONTEXT_DEVICES, 0, nullptr, &dataSize);
-	devices = (cl_device_id *)malloc(dataSize);
-	clGetContextInfo(context, CL_CONTEXT_DEVICES, dataSize, devices, nullptr);
+	std::vector<cl_device_id> devices = std::vector<cl_device_id>(dataSize / sizeof(cl_device_id));
+	clGetContextInfo(context, CL_CONTEXT_DEVICES, dataSize, devices.data(), nullptr);
 	cl_device_id first = devices[0];
-	free(devices);
 	return first;
 }
 
 static cl_int getPlatformID(cl_platform_id *platform)
 {
 	char chBuffer[1024];
-	cl_uint num_platforms, devCount;
+	cl_uint numPlatforms, devCount;
 	cl_platform_id *clPlatformIDs;
 	*platform = nullptr;
 
-	CheckCL(clGetPlatformIDs(0, nullptr, &num_platforms), __FILE__, __LINE__);
-	if (num_platforms == 0)
-	{
+	CHECKCL(clGetPlatformIDs(0, nullptr, &numPlatforms));
+	if (numPlatforms == 0)
 		FatalError(__FILE__, __LINE__, "No valid OpenCL platforms found.", "OpenCL Init");
-	}
 
-	clPlatformIDs = (cl_platform_id *)malloc(num_platforms * sizeof(cl_platform_id));
-	CHECKCL(clGetPlatformIDs(num_platforms, clPlatformIDs, nullptr));
-#ifdef USE_CPU_DEVICE
-	cl_uint deviceType[2] = {CL_DEVICE_TYPE_CPU, CL_DEVICE_TYPE_CPU};
-	char *deviceOrder[2][3] = {{"", "", ""}, {"", "", ""}};
-#else
-	//	cl_uint deviceType[2] = { CL_DEVICE_TYPE_GPU, CL_DEVICE_TYPE_CPU };
-	cl_uint deviceType[1] = {CL_DEVICE_TYPE_GPU};
-	//	const char* deviceOrder[2][3] = {{"NVIDIA", "AMD", "" }, {"", "", "" }
-	//};
+	clPlatformIDs = (cl_platform_id *)malloc(numPlatforms * sizeof(cl_platform_id));
+	CHECKCL(clGetPlatformIDs(numPlatforms, clPlatformIDs, nullptr));
+
+	cl_uint deviceType[2] = {CL_DEVICE_TYPE_GPU, CL_DEVICE_TYPE_CPU};
 	const char *deviceOrder[1][3] = {{"NVIDIA", "AMD", ""}};
-#endif
 	printf("available OpenCL platforms:\n");
-	for (cl_uint i = 0; i < num_platforms; ++i)
+	for (cl_uint i = 0; i < numPlatforms; ++i)
 	{
 		CHECKCL(clGetPlatformInfo(clPlatformIDs[i], CL_PLATFORM_NAME, 1024, &chBuffer, nullptr));
 		printf("#%i: %s\n", i, chBuffer);
 	}
+
 	for (cl_uint j = 0; j < 2; j++)
 	{
 		for (int k = 0; k < 3; k++)
 		{
-			for (cl_uint i = 0; i < num_platforms; ++i)
+			for (cl_uint i = 0; i < numPlatforms; ++i)
 			{
 				cl_int error = clGetDeviceIDs(clPlatformIDs[i], deviceType[j], 0, nullptr, &devCount);
 				if ((error != CL_SUCCESS) || (devCount == 0))
-				{
 					continue;
-				}
 
 				CHECKCL(clGetPlatformInfo(clPlatformIDs[i], CL_PLATFORM_NAME, 1024, &chBuffer, nullptr));
 				if (deviceOrder[j][k][0])
-				{
 					if (!strstr(chBuffer, deviceOrder[j][k]))
-					{
 						continue;
-					}
-				}
 
 				printf("OpenCL device: %s\n", chBuffer);
 				*platform = clPlatformIDs[i];
@@ -202,7 +189,7 @@ Kernel::Kernel(const char *file, const char *entryPoint, std::tuple<size_t, size
 {
 	if (!m_Initialized)
 	{
-		if (!InitCL())
+		if (!initCL())
 			FatalError(__FILE__, __LINE__, "Failed to initialize OpenCL");
 		m_Initialized = true;
 	}
@@ -210,13 +197,13 @@ Kernel::Kernel(const char *file, const char *entryPoint, std::tuple<size_t, size
 	cl_int error;
 	char *source = loadSource(file, &size);
 	m_Program = clCreateProgramWithSource(m_Context, 1, (const char **)&source, &size, &error);
-	CheckCL(error, __FILE__, __LINE__);
-	error = clBuildProgram(m_Program, 0, nullptr,
+	CHECKCL(error);
+	CHECKCL(clBuildProgram(m_Program, 0, nullptr,
 						   "-cl-fast-relaxed-math -cl-mad-enable "
 						   "-cl-denorms-are-zero -cl-no-signed-zeros "
 						   "-cl-unsafe-math-optimizations -cl-finite-math-only "
-						   "-cl-strict-aliasing",
-						   nullptr, nullptr);
+						   "-cl-strict-aliasing -cl-kernel-arg-info",
+						   nullptr, nullptr));
 
 	if (error != CL_SUCCESS)
 	{
@@ -228,13 +215,17 @@ Kernel::Kernel(const char *file, const char *entryPoint, std::tuple<size_t, size
 		sprintf(buffer, "Build error, file: %s", file);
 		FatalError(__FILE__, __LINE__, log.data(), buffer);
 	}
+
 	m_Kernel = clCreateKernel(m_Program, entryPoint, &error);
 	CheckCL(error, __FILE__, __LINE__);
 
-	m_WorkSize = new size_t[3];
 	m_WorkSize[0] = std::get<0>(workSize);
 	m_WorkSize[1] = std::get<1>(workSize);
 	m_WorkSize[2] = std::get<2>(workSize);
+
+	m_LocalSize[0] = 16;
+	m_LocalSize[1] = 16;
+	m_LocalSize[2] = 1;
 }
 
 Kernel::~Kernel()
@@ -243,58 +234,57 @@ Kernel::~Kernel()
 		clReleaseKernel(m_Kernel);
 	if (m_Program)
 		clReleaseProgram(m_Program);
-
-	delete[] m_WorkSize;
+	if (m_Initialized)
+	{
+		if (m_Queue)
+			clReleaseCommandQueue(m_Queue);
+		if (m_Context)
+			clReleaseContext(m_Context);
+		m_Initialized = false;
+	}
 }
 
-bool Kernel::InitCL()
+bool Kernel::initCL()
 {
 	cl_platform_id platform;
-	cl_device_id *devices;
+	std::vector<cl_device_id> deviceIDs;
 	cl_uint devCount;
 	cl_int error;
 
-	if (!CheckCL(error = getPlatformID(&platform), __FILE__, __LINE__))
-		return false;
-#ifdef __APPLE__
-	if (!CheckCL(error = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &devCount), __FILE__, __LINE__))
-		return false;
-	devices = new cl_device_id[devCount];
-	if (!CheckCL(error = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, devCount, devices, nullptr), __FILE__, __LINE__))
+	if (!CHECKCL(error = getPlatformID(&platform)))
 		return false;
 
-	if (devCount >= 2)
-	{
-		// swap devices so dGPU gets selected
-		std::swap(devices[0], devices[1]);
-	}
+#ifdef __APPLE__
+	if (!CHECKCL(error = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 0, nullptr, &devCount)))
+		return false;
+
+	deviceIDs.resize(devCount);
+	if (!CHECKCL(error = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, devCount, deviceIDs.data(), nullptr)))
+		return false;
 #else
 	if (!CheckCL(error = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 0, nullptr, &devCount), __FILE__, __LINE__))
 		return false;
-	devices = new cl_device_id[devCount];
-	if (!CheckCL(error = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, devCount, devices, nullptr), __FILE__, __LINE__))
+	deviceIDs = new cl_device_id[devCount];
+	if (!CheckCL(error = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, devCount, deviceIDs, nullptr), __FILE__,
+				 __LINE__))
 		return false;
 #endif
-	uint deviceUsed = 0;
-	uint endDev = devCount;
-	bool canShare = false;
+	std::vector<cl_device_id> compatibleDevices;
 
-	for (uint i = deviceUsed; (!canShare && (i < endDev)); ++i)
+	for (uint i = 0; i < devCount; ++i)
 	{
 		size_t extensionSize;
-		CheckCL(error = clGetDeviceInfo(devices[i], CL_DEVICE_EXTENSIONS, 0, nullptr, &extensionSize), __FILE__,
-				__LINE__);
+		CHECKCL(error = clGetDeviceInfo(deviceIDs[i], CL_DEVICE_EXTENSIONS, 0, nullptr, &extensionSize));
 		if (extensionSize > 0)
 		{
-			char *extensions = (char *)malloc(extensionSize);
-			CheckCL(error =
-						clGetDeviceInfo(devices[i], CL_DEVICE_EXTENSIONS, extensionSize, extensions, &extensionSize),
-					__FILE__, __LINE__);
-			std::string devices(extensions);
-			std::transform(devices.begin(), devices.end(), devices.begin(), ::tolower);
-			free(extensions);
+			std::vector<char> extensions(extensionSize / sizeof(char));
+			CHECKCL(error = clGetDeviceInfo(deviceIDs[i], CL_DEVICE_EXTENSIONS, extensionSize, extensions.data(),
+											&extensionSize));
+			std::string deviceExtensions(extensions.data());
+			std::transform(deviceExtensions.begin(), deviceExtensions.end(), deviceExtensions.begin(), ::tolower);
+
 			size_t oldPos = 0;
-			size_t spacePos = devices.find(' ', oldPos); // extensions string is space delimited
+			size_t spacePos = deviceExtensions.find(' ', oldPos); // extensions string is space delimited
 
 #ifdef __APPLE__
 			const char *neededProp = "cl_apple_gl_sharing";
@@ -302,34 +292,31 @@ bool Kernel::InitCL()
 			const char *neededProp = "cl_khr_gl_sharing";
 #endif
 
-			while (spacePos != devices.npos)
+			while (spacePos != std::string::npos)
 			{
-				if (strcmp(neededProp, devices.substr(oldPos, spacePos - oldPos).c_str()) == 0)
+				if (strcmp(neededProp, deviceExtensions.substr(oldPos, spacePos - oldPos).c_str()) == 0)
 				{
-					canShare = true; // device supports context sharing with OpenGL
-					deviceUsed = i;
+					compatibleDevices.push_back(deviceIDs[i]);
 					break;
 				}
 				do
 				{
 					oldPos = spacePos + 1;
-					spacePos = devices.find(' ', oldPos);
+					spacePos = deviceExtensions.find(' ', oldPos);
 				} while (spacePos == oldPos);
 			}
 		}
 	}
 
-	if (canShare)
+	if (compatibleDevices.empty())
 	{
-		std::cout << "Using CL-GL Interop" << std::endl;
-	}
-	else
-	{
-		std::cout << "No device found that supports CL/GL context sharing" << std::endl;
+		std::cout << "No device found that supports CL/GL context sharing." << std::endl;
 		return false;
 	}
 
-#ifdef _WIN32
+	std::cout << "Using CL-GL Interop." << std::endl;
+
+#ifdef WIN32
 	cl_context_properties props[] = {CL_GL_CONTEXT_KHR,
 									 (cl_context_properties)wglGetCurrentContext(),
 									 CL_WGL_HDC_KHR,
@@ -353,94 +340,101 @@ bool Kernel::InitCL()
 									 0};
 #endif
 
-	// attempt to create a context with the requested features
-	canDoInterop = true;
-	m_Context = clCreateContext(props, 1, &devices[deviceUsed], nullptr, nullptr, &error);
-	if (error != 0)
+	std::vector<Device> devices(compatibleDevices.size());
+	for (unsigned int i = 0; i < compatibleDevices.size(); i++)
+		devices[i] = Device(compatibleDevices[i]);
+
+	auto calculateScore = [](const Device &dev) -> float {
+		float score = 0.0f;
+
+		if (!dev.isAvailable())
+			return score;
+
+		score += static_cast<float>(dev.getGlobalMemorySize()) / powf(1024.0f, 3.0f); // convert to GB
+		score += static_cast<float>(dev.getComputeUnits()) / 20.0f;
+		score *= (dev.getType() == Device::Type::GPU ? 10.0f : 1.0f);
+
+		return score;
+	};
+
+	std::sort(devices.begin(), devices.end(), [&calculateScore](const Device &dev1, const Device &dev2) {
+		return calculateScore(dev1) > calculateScore(dev2);
+	});
+
+	bool validDeviceFound = false;
+	for (const auto &dev : devices)
 	{
-		// that didn't work, let's take what we can get
-		cl_context_properties props[] = {0};
-		m_Context = clCreateContext(props, 1, &devices[deviceUsed], nullptr, nullptr, &error);
-		canDoInterop = false;
+		canDoInterop = true;
+		m_Device = dev.getID();
+		m_Context = clCreateContext(props, 1, &m_Device, nullptr, nullptr, &error);
+		if (!CHECKCL(error)) // try next device
+			continue;
+		m_Queue = clCreateCommandQueue(m_Context, m_Device, 0, &error);
+		if (error == CL_INVALID_DEVICE)
+		{
+			std::cout << "Could not initialize command queue with " << dev.getName() << std::endl;
+			clReleaseContext(m_Context);
+			continue;
+		}
+
+		validDeviceFound = true;
+		std::cout << "OpenCL context created." << std::endl;
+		std::cout << "Using device:" << std::endl;
+		std::cout << "\tName: " << dev.getName() << std::endl;
+		std::cout << "\tGlobal memory: " << dev.getGlobalMemorySize() / (powf(1024.0f, 3.0f)) << " GB" << std::endl;
+		std::cout << "\tCompute units: " << dev.getComputeUnits() << std::endl;
+		break;
 	}
 
-	m_Device = getFirstDevice(m_Context);
-	if (!CheckCL(error, __FILE__, __LINE__))
-	{
-		return false;
-	}
-
-	// print device name
-	std::vector<char> device_string(1024);
-	clGetDeviceInfo(devices[deviceUsed], CL_DEVICE_NAME, device_string.size(), device_string.data(), nullptr);
-	std::cout << "Device #" << deviceUsed << ", " << device_string.data() << std::endl;
-
-	size_t p_size;
-	size_t l_size;
-	size_t d_size;
-	clGetDeviceInfo(devices[deviceUsed], CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &p_size, nullptr);
-	clGetDeviceInfo(devices[deviceUsed], CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t), &l_size, nullptr);
-	clGetDeviceInfo(devices[deviceUsed], CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(size_t), &d_size, nullptr);
-	std::cout << "\tMax Work Group Size: " << p_size << std::endl;
-	std::cout << "\tMax Work Item Sizes: " << l_size << std::endl;
-	std::cout << "\tMax Work Item Dimensions: " << d_size << std::endl;
-
-	// create a command-queue
-	m_Queue = clCreateCommandQueue(m_Context, devices[deviceUsed], 0, &error);
-
-	bool result = CheckCL(error, __FILE__, __LINE__);
-	Kernel::m_Initialized = result;
-	return result;
+	Kernel::m_Initialized = validDeviceFound;
+	return validDeviceFound;
 }
 
 cl_int Kernel::run()
 {
 	glFinish();
-	return clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, 0, m_WorkSize, 0, 0, 0, 0);
+	return clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, 0, m_WorkSize, m_LocalSize, 0, 0, 0);
 }
 
 cl_int Kernel::run(cl_mem *buffers, int count)
 {
-	cl_int err = CL_SUCCESS;
+	cl_int err;
 
 	glFinish();
 	if (Kernel::canDoInterop)
 	{
 		err = clEnqueueAcquireGLObjects(m_Queue, count, buffers, 0, 0, 0);
-		err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0);
+		err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, m_LocalSize, 0, 0, 0);
 		err = clEnqueueReleaseGLObjects(m_Queue, count, buffers, 0, 0, 0);
 	}
 	else
-	{
-		err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0);
-	}
+		err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, m_LocalSize, 0, 0, 0);
+
 	return err;
 }
 
-cl_int Kernel::run(TextureBuffer *buffer)
+cl_int Kernel::run(cl::TextureBuffer *buffer)
 {
 	cl_int err = CL_SUCCESS;
 	glFinish();
 	if (Kernel::canDoInterop)
 	{
 		err = clEnqueueAcquireGLObjects(m_Queue, 1, buffer->getDevicePtr(), 0, 0, 0);
-		err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0);
+		err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, m_LocalSize, 0, 0, 0);
 		err = clEnqueueReleaseGLObjects(m_Queue, 1, buffer->getDevicePtr(), 0, 0, 0);
 	}
 	else
-	{
-		err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, 0, 0, 0, 0);
-	}
+		err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 2, nullptr, m_WorkSize, m_LocalSize, 0, 0, 0);
 
 	return err;
 }
 
-cl_int Kernel::run(size_t count)
-{
-	cl_int err = CL_SUCCESS;
-	err = clEnqueueNDRangeKernel(m_Queue, m_Kernel, 1, 0, &count, 0, 0, 0, 0);
-	return err;
-}
+cl_int Kernel::run(size_t count) { return clEnqueueNDRangeKernel(m_Queue, m_Kernel, 1, 0, &count, 0, 0, 0, 0); }
 
 cl_int Kernel::syncQueue() { return clFinish(m_Queue); }
+
+cl_int Kernel::setBuffer(int idx, cl::TextureBuffer *buffer)
+{
+	return clSetKernelArg(m_Kernel, idx, sizeof(cl_mem), buffer->getDevicePtr());
+}
 } // namespace cl

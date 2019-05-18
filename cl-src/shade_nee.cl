@@ -82,7 +82,6 @@ kernel void shade_nee(global Ray *rays,				   // 0
 	case (2): // Lambert
 	{
 		ray.direction = r_cos_reflect(normal, &seed);
-		ray.throughput *= color;
 
 		const int light = (int)(RandomFloat(&seed) * (lightCount - 1));
 		const int lightIdx = lightIndices[light];
@@ -115,7 +114,10 @@ kernel void shade_nee(global Ray *rays,				   // 0
 			sRays[pixelIdx].t = distance - EPSILON;
 			sRays[pixelIdx].hit_idx = -1;
 		}
+
+		ray.throughput *= color;
 		ray.origin += EPSILON * ray.direction;
+		break;
 	}
 	case (3): // Specular
 	{
@@ -146,7 +148,7 @@ kernel void shade_nee(global Ray *rays,				   // 0
 		{
 			ray.hit_idx = -1;
 			ray.throughput = (float3)(0);
-			colorBuffer[pixelIdx].z += 1.0f;
+			colorBuffer[pixelIdx].w += 1.0f;
 		}
 	}
 

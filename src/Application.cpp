@@ -38,15 +38,15 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 
 	m_Type = type;
 	m_DrawShader = new gl::Shader("shaders/quad.vert", "shaders/quad.frag");
+	m_RenderScale = 0.5f;
 
 	if (m_Type == CPU || m_Type == CPU_RAYTRACER)
 	{
 		//		else
 		//			Dragon(m_ObjectList);
-		//		Micromaterials(m_ObjectList);
+		//		Micromaterials(&m_ObjectList);
 		//		CornellBox(m_ObjectList);
-		m_RenderScale = 0.5f;
-		const auto lightMat = Material::light(vec3(1.0f));
+		const auto lightMat = Material::light(vec3(10.0f));
 		const unsigned int lightIdx = MaterialManager::GetInstance()->AddMaterial(lightMat);
 		prims::Plane::create(vec3(100.0f, 100.0f, 10.0f), vec3(-100.0f, 100.0f, 10.0f), vec3(100.0f, 100.0f, -10.0f),
 							 lightIdx, &m_ObjectList);
@@ -66,7 +66,7 @@ Application::Application(utils::Window *window, RendererType type, int width, in
 		else
 		{
 			//			CornellBox(triangleList);
-			//			Micromaterials(triangleList);
+			//			Micromaterials(&m_TriangleList);
 			const auto lightMat = Material::light(vec3(1.0f));
 			const unsigned int lightIdx = MaterialManager::GetInstance()->AddMaterial(lightMat);
 			prims::Plane::create(vec3(100.0f, 100.0f, 10.0f), vec3(-100.0f, 100.0f, 10.0f),

@@ -38,10 +38,10 @@ class RayTracer : public Renderer
 	prims::WorldScene *m_Scene;
 	ctpl::ThreadPool *tPool = nullptr;
 	Camera *m_Camera;
-	Surface *m_SkyBox = nullptr;
 
 	int m_Width, m_Height, m_LightCount;
 
+	Surface *m_SkyBox = nullptr;
 	std::vector<std::future<void>> tResults{};
 	std::vector<RandomGenerator *> *m_Rngs = nullptr;
 	std::vector<glm::vec3> m_Pixels;

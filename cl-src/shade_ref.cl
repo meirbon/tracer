@@ -84,6 +84,7 @@ kernel void shade_ref(global Ray *rays,				   // 0
 		ray.direction = r_cos_reflect(normal, &seed);
 		ray.throughput *= color;
 		ray.origin += EPSILON * ray.direction;
+		break;
 	}
 	case (3): // Specular
 	{
@@ -114,7 +115,7 @@ kernel void shade_ref(global Ray *rays,				   // 0
 		{
 			ray.hit_idx = -1;
 			ray.throughput = (float3)(0);
-			colorBuffer[pixelIdx].z += 1.0f;
+			colorBuffer[pixelIdx].w += 1.0f;
 		}
 	}
 

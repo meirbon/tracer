@@ -20,7 +20,7 @@ Camera::Camera(int width, int height, float fov, float mouseSens, vec3 pos)
 	isDirty = true;
 }
 
-Camera::~Camera() { delete gpuBuffer; }
+Camera::~Camera() { delete m_GPUBuffer; }
 
 Ray Camera::generateRay(float x, float y) const
 {
@@ -121,23 +121,23 @@ void Camera::updateGPUBuffer()
 	using namespace cl;
 	if (isDirty)
 	{
-		if (gpuBuffer == nullptr)
-			gpuBuffer = new Buffer<CLCamera>(1);
+		if (!m_GPUBuffer)
+			m_GPUBuffer = new Buffer<CLCamera>(1);
 
-		auto *pointer = &gpuBuffer->getHostPtr()[0];
+		auto &gpuCamera = m_GPUBuffer->getHostPtr()[0];
 
 		const glm::vec3 u = normalize(cross(forward, vec3(0, 1, 0)));
 		const glm::vec3 v = normalize(cross(u, forward));
 
-		pointer->origin = vec4(position, 0.0f);
-		pointer->viewDirection = vec4(forward, 0.0f);
-		pointer->vertical = vec4(v * fovDistance, 0.0f);
-		pointer->horizontal = vec4(u * fovDistance * aspectRatio, 0.0f);
-		pointer->viewDistance = fovDistance;
-		pointer->invWidth = m_InvWidth;
-		pointer->invHeight = m_InvHeight;
-		pointer->aspectRatio = aspectRatio;
-		gpuBuffer->copyToDevice(false);
+		gpuCamera.origin = vec4(position, 0.0f);
+		gpuCamera.viewDirection = vec4(forward, 0.0f);
+		gpuCamera.vertical = vec4(v * fovDistance, 0.0f);
+		gpuCamera.horizontal = vec4(u * fovDistance * aspectRatio, 0.0f);
+		gpuCamera.viewDistance = fovDistance;
+		gpuCamera.invWidth = m_InvWidth;
+		gpuCamera.invHeight = m_InvHeight;
+		gpuCamera.aspectRatio = aspectRatio;
+		m_GPUBuffer->copyToDevice(false);
 	}
 
 	isDirty = false;
@@ -148,6 +148,6 @@ std::future<void> Camera::updateGPUBufferAsync()
 	return std::async([this]() -> void { updateGPUBuffer(); });
 }
 
-cl::Buffer<Camera::CLCamera> *Camera::getGPUBuffer() { return gpuBuffer; }
+cl::Buffer<Camera::CLCamera> *Camera::getGPUBuffer() { return m_GPUBuffer; }
 
 } // namespace core

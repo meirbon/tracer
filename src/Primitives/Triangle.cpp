@@ -128,7 +128,7 @@ bvh::AABB Triangle::GetBounds() const
 	return {vec3(minX, minY, minZ), vec3(maxX, maxY, maxZ)};
 }
 
-vec3 Triangle::GetRandomPointOnSurface(const vec3 &direction, vec3 &lNormal, RandomGenerator &rng) const
+vec3 Triangle::GetRandomPointOnSurface(const vec3 &, vec3 &lNormal, RandomGenerator &rng) const
 {
 	lNormal = normal;
 	float r1 = rng.Rand(1.f);

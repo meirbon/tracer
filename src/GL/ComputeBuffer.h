@@ -8,7 +8,7 @@ namespace gl
 class ComputeBuffer
 {
   public:
-	ComputeBuffer(unsigned int nrOfBytes, void *hostData = nullptr);
+	explicit ComputeBuffer(unsigned int nrOfBytes, void *hostData = nullptr);
 	~ComputeBuffer();
 
 	inline unsigned int *GetHostPointer()
@@ -27,6 +27,5 @@ class ComputeBuffer
   private:
 	unsigned int m_Id;
 	unsigned int m_Size;
-	unsigned int *m_HostBuffer;
 };
 } // namespace gl

@@ -156,12 +156,12 @@ void GLFWWindow::SwitchFullscreen()
 	}
 }
 
-void GLFWWindow::FramebufferSizeCallback(GLFWwindow *window, int width, int height)
+void GLFWWindow::FramebufferSizeCallback(GLFWwindow *, int width, int height)
 {
 	instance->m_OnResizeCallback(width, height);
 }
 
-void GLFWWindow::InputCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
+void GLFWWindow::InputCallback(GLFWwindow *window, int key, int, int action, int)
 {
 	Event event;
 	if (glfwWindowShouldClose(window))
@@ -183,7 +183,7 @@ void GLFWWindow::ErrorCallback(int code, const char *error)
 	std::cout << "ERROR (" << code << "): " << error << std::endl;
 }
 
-void GLFWWindow::MouseCallback(GLFWwindow *window, double xPos, double yPos)
+void GLFWWindow::MouseCallback(GLFWwindow *, double xPos, double yPos)
 {
 	Event event;
 	event.type = MOUSE;
@@ -209,7 +209,7 @@ void GLFWWindow::MouseCallback(GLFWwindow *window, double xPos, double yPos)
 	instance->m_OnEventCallback(event);
 }
 
-void GLFWWindow::MouseButtonCallback(GLFWwindow *window, int button, int action, int mods)
+void GLFWWindow::MouseButtonCallback(GLFWwindow *, int button, int action, int)
 {
 	Event event;
 	event.type = MOUSE;
@@ -219,7 +219,7 @@ void GLFWWindow::MouseButtonCallback(GLFWwindow *window, int button, int action,
 	instance->m_OnEventCallback(event);
 }
 
-void GLFWWindow::MouseScrollCallback(GLFWwindow *window, double xOffset, double yOffset)
+void GLFWWindow::MouseScrollCallback(GLFWwindow *, double xOffset, double yOffset)
 {
 	Event event;
 	event.type = MOUSE;

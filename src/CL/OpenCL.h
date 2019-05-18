@@ -5,7 +5,6 @@
 #include <tuple>
 
 #ifdef __APPLE__
-#define CL_SILENCE_DEPRECATION
 #include <GL/glew.h>
 #include <OpenCL/cl.h>
 #include <OpenCL/cl_gl_ext.h>
@@ -27,6 +26,8 @@
 
 namespace cl
 {
+class TextureBuffer;
+
 inline bool CheckCL(cl_int result, const char *file, int line)
 {
 	using namespace utils;
@@ -216,24 +217,30 @@ class Kernel
 
 	cl_int setArgument(int idx, cl_mem *buffer) { return clSetKernelArg(m_Kernel, idx, sizeof(cl_mem), buffer); }
 
-	template <typename Buffer> cl_int setArgument(int idx, Buffer *buffer)
+	cl_int setBuffer(int idx, cl::TextureBuffer *buffer);
+
+	template <typename T> cl_int setBuffer(int idx, const Buffer<T> *buffer)
 	{
 		return clSetKernelArg(m_Kernel, idx, sizeof(cl_mem), buffer->getDevicePtr());
 	}
 
-	template <typename T> cl_int setArgument(int idx, const T &data)
+	template <typename T> cl_int setArgument(int idx, size_t count, const T *data)
 	{
-		return clSetKernelArg(m_Kernel, idx, sizeof(T), (void *)&data);
+		return clSetKernelArg(m_Kernel, idx, count * sizeof(T), (const void *)data);
 	}
 
-	inline void SetWorkSize(size_t x, size_t y, size_t z)
+	void setWorkSize(size_t x, size_t y, size_t z)
 	{
 		m_WorkSize[0] = x;
 		m_WorkSize[1] = y;
 		m_WorkSize[2] = z;
 	}
 
-	static bool InitCL();
+	size_t *getWorkSize() { return m_WorkSize; }
+
+	size_t *getLocalSize() { return m_LocalSize; }
+
+	static bool initCL();
 
   private:
 	// data members
@@ -245,7 +252,8 @@ class Kernel
 	static cl_command_queue m_Queue;
 	static char *m_Log;
 
-	size_t *m_WorkSize;
+	size_t m_WorkSize[3];
+	size_t m_LocalSize[3];
 
   public:
 	static bool canDoInterop;

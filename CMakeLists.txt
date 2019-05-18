@@ -10,9 +10,13 @@ project("Tracer")
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.h")
 
 set(CMAKE_CXX_STANDARD 17)
-add_executable(${PROJECT_NAME} ${SOURCES} src/Utils/Xor128.cpp)
+add_executable(${PROJECT_NAME} ${SOURCES} src/Utils/Xor128.cpp src/CL/Device.cpp src/CL/Device.h)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+if(APPLE)
+	add_definitions(-DCL_SILENCE_DEPRECATION)
+endif()
 
 set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)
@@ -54,8 +58,8 @@ else()
 	find_package(glfw3 REQUIRED)
 	find_package(FreeImage REQUIRED)
 	find_package(Threads)
-	
-	
+
+
 	target_link_libraries(${PROJECT_NAME} PRIVATE
 		glfw
 		ZLIB::ZLIB

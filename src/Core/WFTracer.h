@@ -81,8 +81,8 @@ class WFTracer : public Renderer
 
   private:
 	Camera *m_Camera = nullptr;
-	bool m_SkyboxEnabled = false;
-	bool m_HasSkybox = false;
+	int m_SkyboxEnabled = false;
+	int m_HasSkybox = false;
 	int m_Frame = 0, m_Width = 0, m_Height = 0;
 
 	bvh::StaticBVHTree *m_BVHTree = nullptr;
@@ -113,6 +113,7 @@ class WFTracer : public Renderer
 	cl::Kernel *wShadeRefKernel = nullptr;
 	cl::Kernel *wShadeNeeKernel = nullptr;
 	cl::Kernel *wShadeMisKernel = nullptr;
+	cl::Kernel *wShadeRayTracer = nullptr;
 	cl::Kernel *wConnectKernel = nullptr;
 	cl::Kernel *wDrawKernel = nullptr;
 

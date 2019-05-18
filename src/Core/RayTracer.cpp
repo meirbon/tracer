@@ -92,14 +92,13 @@ glm::vec3 RayTracer::Shade(const Ray &r, uint &depth, float refractionIndex, Ran
 	if (mat.type == Light)
 		return mat.emission;
 
-	vec3 color;
 	if (mat.type == Lambert)
 		return GetDiffuseSpecularColor(r, mat, p, rng);
 	else
 		return GetreflectionRefractionColor(r, depth, refractionIndex, mat, p, rng);
 }
 
-glm::vec3 RayTracer::GetDiffuseSpecularColor(const Ray &r, const Material &mat, const glm::vec3 &hitPoint,
+glm::vec3 RayTracer::GetDiffuseSpecularColor(const Ray &r, const Material &mat, const glm::vec3 &,
 											 RandomGenerator &rng) const
 {
 	if (m_LightCount < 0)
@@ -206,7 +205,7 @@ glm::vec3 RayTracer::GetreflectionRefractionColor(const core::Ray &r, uint &dept
 	return reflectiveColor * FractionReflection + refractionCol * FractionTransmission;
 }
 
-void RayTracer::Resize(int width, int height, gl::Texture *newOutput1, gl::Texture *)
+void RayTracer::Resize(int width, int height, gl::Texture *, gl::Texture *)
 {
 	m_Width = width;
 	m_Height = height;

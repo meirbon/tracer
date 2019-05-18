@@ -96,7 +96,7 @@ vec3 LightDirectional::GetRandomPointOnSurface(const vec3 &direction, vec3 &lNor
 	return this->Direction * -1e33f + (rng.Rand(2.f) - 1.f) * 1e33f * up + (rng.Rand(2.f) - 1.f) * 1e33f * right;
 }
 
-glm::vec3 LightDirectional::GetNormal(const glm::vec3 &hitPoint) const { return Direction; }
+glm::vec3 LightDirectional::GetNormal(const glm::vec3 &) const { return Direction; }
 
-glm::vec2 LightDirectional::GetTexCoords(const glm::vec3 &hitPoint) const { return glm::vec2(); }
+glm::vec2 LightDirectional::GetTexCoords(const glm::vec3 &) const { return glm::vec2(); }
 } // namespace prims
