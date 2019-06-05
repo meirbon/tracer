@@ -111,10 +111,10 @@ add_custom_command(
 	DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/models"
 )
 
-#add_custom_command(
-#	TARGET ${PROJECT_NAME} POST_BUILD
-#	COMMAND ${CMAKE_COMMAND} -E create_symlink
-#		"${PROJECT_SOURCE_DIR}/cl-src"
-#		"${CMAKE_CURRENT_BINARY_DIR}/cl-src"
-#	DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cl-src"
-#)
+add_custom_command(
+	TARGET ${PROJECT_NAME} POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E create_symlink
+		"${PROJECT_SOURCE_DIR}/cl-src"
+		"${CMAKE_CURRENT_BINARY_DIR}/cl-src"
+	DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cl-src"
+)

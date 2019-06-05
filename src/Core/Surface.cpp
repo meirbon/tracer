@@ -66,7 +66,7 @@ void Surface::LoadImage(const char *file)
 			const auto green = (uint)(quad.rgbGreen);
 			const auto blue = (uint)(quad.rgbBlue);
 			m_Buffer[x + y * m_Width] = (red << 0) | (green << 8) | (blue << 16);
-			m_TexBuffer.emplace_back(float(blue) / 255.99f, float(green) / 255.99f, float(red) / 255.99f, 1.0f);
+			m_TexBuffer.emplace_back(float(red) / 255.99f, float(green) / 255.99f, float(blue) / 255.99f, 1.0f);
 		}
 	}
 

@@ -1,6 +1,10 @@
 #pragma once
 
+#ifdef WIN32
+#include <CL/cl.h>
+#else
 #include <OpenCL/cl.h>
+#endif
 
 #include <string>
 #include <vector>

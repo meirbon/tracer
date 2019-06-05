@@ -29,6 +29,8 @@ int main(int argc, char *argv[])
 			file = str;
 	}
 
+	rendererType = GPU;
+
 	int exitApp = 0;
 	const char *f = file.c_str();
 	auto window = utils::GLFWWindow("Tracer", SCRWIDTH, SCRHEIGHT, oFullScreen);

@@ -9,7 +9,7 @@ class Xor128 : public RandomGenerator
 
 	unsigned int RandomUint() override
 	{
-		uint t = x ^ (x << 11);
+		unsigned int t = x ^ (x << 11);
 		x = y;
 		y = z;
 		z = w;

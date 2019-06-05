@@ -198,12 +198,12 @@ Kernel::Kernel(const char *file, const char *entryPoint, std::tuple<size_t, size
 	char *source = loadSource(file, &size);
 	m_Program = clCreateProgramWithSource(m_Context, 1, (const char **)&source, &size, &error);
 	CHECKCL(error);
-	CHECKCL(clBuildProgram(m_Program, 0, nullptr,
-						   "-cl-fast-relaxed-math -cl-mad-enable "
-						   "-cl-denorms-are-zero -cl-no-signed-zeros "
-						   "-cl-unsafe-math-optimizations -cl-finite-math-only "
-						   "-cl-strict-aliasing -cl-kernel-arg-info",
-						   nullptr, nullptr));
+	error = clBuildProgram(m_Program, 0, nullptr,
+				   "-cl-fast-relaxed-math -cl-mad-enable "
+				   "-cl-denorms-are-zero -cl-no-signed-zeros "
+				   "-cl-unsafe-math-optimizations -cl-finite-math-only "
+				   "-cl-strict-aliasing -cl-kernel-arg-info",
+				   nullptr, nullptr);
 
 	if (error != CL_SUCCESS)
 	{
@@ -264,14 +264,14 @@ bool Kernel::initCL()
 #else
 	if (!CheckCL(error = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 0, nullptr, &devCount), __FILE__, __LINE__))
 		return false;
-	deviceIDs = new cl_device_id[devCount];
-	if (!CheckCL(error = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, devCount, deviceIDs, nullptr), __FILE__,
+	deviceIDs.resize(devCount);
+	if (!CheckCL(error = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, devCount, deviceIDs.data(), nullptr), __FILE__,
 				 __LINE__))
 		return false;
 #endif
 	std::vector<cl_device_id> compatibleDevices;
 
-	for (uint i = 0; i < devCount; ++i)
+	for (unsigned int i = 0; i < devCount; ++i)
 	{
 		size_t extensionSize;
 		CHECKCL(error = clGetDeviceInfo(deviceIDs[i], CL_DEVICE_EXTENSIONS, 0, nullptr, &extensionSize));
